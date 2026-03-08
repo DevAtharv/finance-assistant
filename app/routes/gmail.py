@@ -208,4 +208,3 @@ def disconnect():
     except Exception:
         pass
     return redirect(url_for("dashboard.index"))
-
