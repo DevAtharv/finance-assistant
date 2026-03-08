@@ -1,6 +1,5 @@
-from flask import Blueprint, redirect, url_for, session, request, jsonify, render_template_string
+from flask import Blueprint, redirect, url_for, session, request, jsonify
 import os
-import json
 
 gmail_bp = Blueprint("gmail", __name__)
 
@@ -14,6 +13,7 @@ def get_supabase():
 
 def get_google_flow():
     from google_auth_oauthlib.flow import Flow
+    redirect_uri = os.environ.get("GMAIL_REDIRECT_URI", "http://localhost:5000/gmail/callback")
     flow = Flow.from_client_config(
         {
             "web": {
@@ -21,19 +21,47 @@ def get_google_flow():
                 "client_secret": os.environ["GMAIL_CLIENT_SECRET"],
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                 "token_uri": "https://oauth2.googleapis.com/token",
-                "redirect_uris": [os.environ.get("GMAIL_REDIRECT_URI", "http://localhost:5000/gmail/callback")],
+                "redirect_uris": [redirect_uri],
             }
         },
         scopes=["https://www.googleapis.com/auth/gmail.readonly"]
     )
-    flow.redirect_uri = os.environ.get("GMAIL_REDIRECT_URI", "http://localhost:5000/gmail/callback")
+    flow.redirect_uri = redirect_uri
     return flow
+
+def get_gmail_service(token_data):
+    from google.oauth2.credentials import Credentials
+    from google.auth.transport.requests import Request
+    from googleapiclient.discovery import build
+
+    creds = Credentials(
+        token=token_data["gmail_token"],
+        refresh_token=token_data["gmail_refresh_token"],
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=os.environ["GMAIL_CLIENT_ID"],
+        client_secret=os.environ["GMAIL_CLIENT_SECRET"],
+    )
+
+    if creds.expired and creds.refresh_token:
+        try:
+            creds.refresh(Request())
+            sb = get_supabase()
+            sb.table("gmail_tokens").update({
+                "gmail_token": creds.token,
+            }).eq("user_id", session["user_id"]).execute()
+        except Exception as e:
+            raise Exception(f"Token refresh failed: {str(e)}")
+
+    return build("gmail", "v1", credentials=creds)
 
 @gmail_bp.route("/gmail/connect")
 def connect():
     if not session.get("user_id"):
         return redirect(url_for("auth.login"))
-    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
+    if "localhost" in os.environ.get("GMAIL_REDIRECT_URI", ""):
+        os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
     flow = get_google_flow()
     auth_url, state = flow.authorization_url(
         access_type="offline",
@@ -47,13 +75,20 @@ def connect():
 def callback():
     if not session.get("user_id"):
         return redirect(url_for("auth.login"))
-    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
+    if "localhost" in os.environ.get("GMAIL_REDIRECT_URI", ""):
+        os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
     try:
         flow = get_google_flow()
-        flow.fetch_token(authorization_response=request.url)
+
+        auth_response = request.url
+        if auth_response.startswith("http://") and "localhost" not in auth_response:
+            auth_response = auth_response.replace("http://", "https://", 1)
+
+        flow.fetch_token(authorization_response=auth_response)
         credentials = flow.credentials
 
-        # Save tokens to Supabase
         sb = get_supabase()
         token_data = {
             "user_id": session["user_id"],
@@ -62,7 +97,6 @@ def callback():
             "gmail_connected": True,
         }
 
-        # Check if record exists
         existing = sb.table("gmail_tokens").select("*").eq("user_id", session["user_id"]).execute()
         if existing.data:
             sb.table("gmail_tokens").update(token_data).eq("user_id", session["user_id"]).execute()
@@ -70,10 +104,11 @@ def callback():
             sb.table("gmail_tokens").insert(token_data).execute()
 
         session["gmail_connected"] = True
-        return redirect(url_for("gmail.sync") + "?auto=1")
+        return redirect("/dashboard?syncing=1")
 
     except Exception as e:
-        return redirect(url_for("dashboard.index") + f"?error=gmail_failed")
+        print(f"Gmail callback error: {e}")
+        return redirect(f"/dashboard?error=gmail_failed")
 
 @gmail_bp.route("/gmail/sync")
 def sync():
@@ -81,61 +116,46 @@ def sync():
         return jsonify({"error": "Unauthorized"}), 401
 
     try:
-        from google.oauth2.credentials import Credentials
-        from googleapiclient.discovery import build
         from app.services.gmail_parser import fetch_bank_emails
         from app.services.categorizer import categorize_transactions
 
         sb = get_supabase()
 
-        # Get stored tokens
         token_row = sb.table("gmail_tokens").select("*").eq("user_id", session["user_id"]).execute()
         if not token_row.data:
-            return jsonify({"error": "Gmail not connected"}), 400
+            return jsonify({"error": "Gmail not connected. Please reconnect."}), 400
 
         token_data = token_row.data[0]
 
-        # Build Gmail service
-        creds = Credentials(
-            token=token_data["gmail_token"],
-            refresh_token=token_data["gmail_refresh_token"],
-            token_uri="https://oauth2.googleapis.com/token",
-            client_id=os.environ["GMAIL_CLIENT_ID"],
-            client_secret=os.environ["GMAIL_CLIENT_SECRET"],
-        )
+        if not token_data.get("gmail_refresh_token"):
+            return jsonify({"error": "Missing refresh token. Please reconnect Gmail."}), 400
 
-        gmail_service = build("gmail", "v1", credentials=creds)
-
-        # Fetch and parse emails
+        gmail_service = get_gmail_service(token_data)
         transactions = fetch_bank_emails(gmail_service, max_results=100)
 
         if not transactions:
-            return jsonify({"success": True, "count": 0, "message": "No new transactions found"})
+            return jsonify({"success": True, "count": 0, "message": "No bank transaction emails found"})
 
-        # Get existing gmail_ids to avoid duplicates
         existing = sb.table("transactions").select("raw_text").eq("user_id", session["user_id"]).execute()
         existing_ids = set()
         for row in (existing.data or []):
             raw = row.get("raw_text", "")
             if "gmail_id:" in raw:
-                gid = raw.split("gmail_id:")[-1].strip()
+                gid = raw.split("gmail_id:")[-1].split("|")[0].strip()
                 existing_ids.add(gid)
 
-        # Filter duplicates
         new_transactions = []
         for tx in transactions:
             gmail_id = tx.get("gmail_id", "")
-            if gmail_id not in existing_ids:
+            if gmail_id and gmail_id not in existing_ids:
                 tx["raw_text"] = f"gmail_id:{gmail_id} | {tx.get('raw_text', '')}"
                 new_transactions.append(tx)
 
         if not new_transactions:
             return jsonify({"success": True, "count": 0, "message": "All transactions already imported"})
 
-        # Categorize
         new_transactions = categorize_transactions(new_transactions)
 
-        # Save to Supabase
         rows = []
         for tx in new_transactions:
             rows.append({
@@ -162,6 +182,7 @@ def sync():
         })
 
     except Exception as e:
+        print(f"Gmail sync error: {e}")
         return jsonify({"error": str(e)}), 500
 
 @gmail_bp.route("/gmail/status")
@@ -187,3 +208,4 @@ def disconnect():
     except Exception:
         pass
     return redirect(url_for("dashboard.index"))
+
