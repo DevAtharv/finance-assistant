@@ -43,7 +43,7 @@ MERCHANT_RULES = {
     },
 }
 
-def rule_based_categorize(merchant: str) -> dict:
+def rule_based_categorize_transactions(merchant: str) -> dict:
     merchant_lower = merchant.lower()
     for _, config in MERCHANT_RULES.items():
         if any(kw in merchant_lower for kw in config["keywords"]):
@@ -54,7 +54,7 @@ def rule_based_categorize(merchant: str) -> dict:
             }
     return {"category": "Other", "subcategory": "Uncategorized", "confidence": "rule-based"}
 
-def ai_categorize(merchant: str, amount: float, tx_type: str) -> dict:
+def ai_categorize_transactions(merchant: str, amount: float, tx_type: str) -> dict:
     try:
         prompt = f"""Categorize this Indian financial transaction.
 Transaction:
@@ -80,17 +80,21 @@ Return ONLY a JSON object:
         result["confidence"] = "ai"
         return result
     except Exception:
-        return rule_based_categorize(merchant)
+        return rule_based_categorize_transactions(merchant)
 
-def categorize(transactions: list) -> list:
+def categorize_transactions(transactions: list) -> list:
     categorized = []
     for tx in transactions:
         merchant = tx.get("merchant", "Unknown")
-        result = rule_based_categorize(merchant)
+        result = rule_based_categorize_transactions(merchant)
         if result["category"] == "Other" and os.environ.get("OPENAI_API_KEY"):
-            result = ai_categorize(merchant, tx.get("amount", 0), tx.get("type", "debit"))
+            result = ai_categorize_transactions(merchant, tx.get("amount", 0), tx.get("type", "debit"))
         tx["category"] = result.get("category", "Other")
         tx["subcategory"] = result.get("subcategory", "Uncategorized")
         tx["merchant_clean"] = result.get("merchant_clean", merchant)
+        
+        # ✅ FIXED: Appending to the list, not the function!
         categorized.append(tx)
+        
+    # ✅ FIXED: Returning the list, not the function!
     return categorized
