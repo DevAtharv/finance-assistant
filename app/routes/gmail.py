@@ -117,7 +117,7 @@ def sync():
 
     try:
         from app.services.gmail_parser import stream_bank_emails
-        from app.services.categorizer import categorize_transactions
+        from app.services.categorizer import categorize
 
         sb = get_supabase()
 
@@ -126,17 +126,11 @@ def sync():
             return jsonify({"error": "Gmail not connected. Please reconnect."}), 400
 
         token_data = token_row.data[0]
-
         if not token_data.get("gmail_refresh_token"):
             return jsonify({"error": "Missing refresh token. Please reconnect Gmail."}), 400
 
         gmail_service = get_gmail_service(token_data)
-        transactions = stream_bank_emails(gmail_service, max_results=25)
 
-        if not transactions:
-            return jsonify({"success": True, "count": 0, "message": "No bank transaction emails found"})
-
-        # Get existing gmail IDs to avoid duplicates
         existing = sb.table("transactions").select("raw_text").eq("user_id", session["user_id"]).execute()
         existing_ids = set()
         for row in (existing.data or []):
@@ -145,6 +139,44 @@ def sync():
                 gid = raw.split("gmail_id:")[-1].split("|")[0].strip()
                 existing_ids.add(gid)
 
+        saved = 0
+        skipped = 0
+
+        for tx in stream_bank_emails(gmail_service, max_results=25):
+            try:
+                gmail_id = tx.get("gmail_id", "")
+                if gmail_id in existing_ids:
+                    skipped += 1
+                    continue
+
+                category = categorize(tx.get("merchant", ""), tx.get("raw_text", ""))
+
+                sb.table("transactions").insert({
+                    "user_id": session["user_id"],
+                    "date": tx.get("date"),
+                    "amount": tx.get("amount"),
+                    "type": tx.get("type"),
+                    "merchant": tx.get("merchant", "Unknown"),
+                    "merchant_clean": tx.get("merchant", "Unknown"),
+                    "category": category if isinstance(category, str) else category.get("category", "Other"),
+                    "subcategory": "Uncategorized",
+                    "payment_mode": tx.get("payment_mode", "Other"),
+                    "bank": tx.get("bank", "Unknown"),
+                    "raw_text": f"gmail_id:{gmail_id} | {tx.get('raw_text', '')}",
+                }).execute()
+
+                existing_ids.add(gmail_id)
+                saved += 1
+
+            except Exception as e:
+                print(f"Error saving transaction: {e}")
+                continue
+
+        return jsonify({"success": True, "count": saved, "message": f"Imported {saved} new transactions"})
+
+    except Exception as e:
+        print(f"Gmail sync error: {e}")
+        return jsonify({"error": str(e)}), 500
         # Categorize
         transactions = categorize_transactions(transactions)
 
