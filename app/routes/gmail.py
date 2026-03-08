@@ -136,6 +136,7 @@ def sync():
         if not transactions:
             return jsonify({"success": True, "count": 0, "message": "No bank transaction emails found"})
 
+        # Get existing gmail IDs to avoid duplicates
         existing = sb.table("transactions").select("raw_text").eq("user_id", session["user_id"]).execute()
         existing_ids = set()
         for row in (existing.data or []):
@@ -144,41 +145,44 @@ def sync():
                 gid = raw.split("gmail_id:")[-1].split("|")[0].strip()
                 existing_ids.add(gid)
 
-        new_transactions = []
+        # Categorize
+        transactions = categorize_transactions(transactions)
+
+        # Insert one by one to avoid memory crash
+        saved = 0
+        skipped = 0
         for tx in transactions:
-            gmail_id = tx.get("gmail_id", "")
-            if gmail_id and gmail_id not in existing_ids:
-                tx["raw_text"] = f"gmail_id:{gmail_id} | {tx.get('raw_text', '')}"
-                new_transactions.append(tx)
+            try:
+                gmail_id = tx.get("gmail_id", "")
+                if gmail_id and gmail_id in existing_ids:
+                    skipped += 1
+                    continue
 
-        if not new_transactions:
-            return jsonify({"success": True, "count": 0, "message": "All transactions already imported"})
+                raw_text = f"gmail_id:{gmail_id} | {tx.get('raw_text', '')}"
 
-        new_transactions = categorize_transactions(new_transactions)
+                sb.table("transactions").insert({
+                    "user_id": session["user_id"],
+                    "date": tx.get("date"),
+                    "amount": tx.get("amount"),
+                    "type": tx.get("type"),
+                    "merchant": tx.get("merchant", "Unknown"),
+                    "merchant_clean": tx.get("merchant_clean", tx.get("merchant", "Unknown")),
+                    "category": tx.get("category", "Other"),
+                    "subcategory": tx.get("subcategory", "Uncategorized"),
+                    "payment_mode": tx.get("payment_mode", "Other"),
+                    "bank": tx.get("bank", "Unknown"),
+                    "raw_text": raw_text[:500],
+                }).execute()
+                saved += 1
 
-        rows = []
-        for tx in new_transactions:
-            rows.append({
-                "user_id": session["user_id"],
-                "date": tx.get("date"),
-                "amount": tx.get("amount"),
-                "type": tx.get("type"),
-                "merchant": tx.get("merchant", "Unknown"),
-                "merchant_clean": tx.get("merchant_clean", tx.get("merchant", "Unknown")),
-                "category": tx.get("category", "Other"),
-                "subcategory": tx.get("subcategory", "Uncategorized"),
-                "payment_mode": tx.get("payment_mode", "Other"),
-                "bank": tx.get("bank", "Unknown"),
-                "raw_text": tx.get("raw_text", "")[:500],
-            })
-
-        if rows:
-            sb.table("transactions").insert(rows).execute()
+            except Exception as e:
+                print(f"Error saving transaction: {e}")
+                continue
 
         return jsonify({
             "success": True,
-            "count": len(rows),
-            "message": f"Imported {len(rows)} new transactions from Gmail"
+            "count": saved,
+            "message": f"Imported {saved} new transactions from Gmail"
         })
 
     except Exception as e:
