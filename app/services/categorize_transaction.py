@@ -82,7 +82,7 @@ Return ONLY a JSON object:
     except Exception:
         return rule_based_categorize(merchant)
 
-def categorize_transactions(transactions: list) -> list:
+def categorize(transactions: list) -> list:
     categorized = []
     for tx in transactions:
         merchant = tx.get("merchant", "Unknown")
