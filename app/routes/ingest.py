@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 import os
 from app.services.sms_parser import parse_bulk_sms
 from app.services.pdf_csv_parser import parse_pdf, parse_csv
-from app.services.categorizer import categorize_transactions
+from app.services.categorize_transaction import categorize_transactions
 
 ingest_bp = Blueprint("ingest", __name__)
 

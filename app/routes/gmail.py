@@ -117,7 +117,7 @@ def sync():
 
     try:
         from app.services.gmail_parser import stream_bank_emails
-        from app.services.categorizer import categorize
+        from app.services.categorize_transaction import categorize
 
         sb = get_supabase()
 
