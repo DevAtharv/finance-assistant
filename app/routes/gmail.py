@@ -116,7 +116,7 @@ def sync():
         return jsonify({"error": "Unauthorized"}), 401
 
     try:
-        from app.services.gmail_parser import fetch_bank_emails
+        from app.services.gmail_parser import stream_bank_emails
         from app.services.categorizer import categorize_transactions
 
         sb = get_supabase()
