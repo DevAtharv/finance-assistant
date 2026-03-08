@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}{{ "Sign In" if mode == "login" else "Create Account" }} — GetSync{% endblock %}
+{% block page_title %}{{ "Sign In" if mode == "login" else "Create Account" }}{% endblock %}
+
+{% block head %}
+<style>
+  .auth-wrap {
+    flex: 1; display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: calc(100vh - 57px);
+  }
+  @media (max-width: 768px) { .auth-wrap { grid-template-columns: 1fr; } }
+
+  /* Left panel */
+  .auth-left {
+    background: var(--black2);
+    border-right: 1px solid var(--border);
+    padding: 3rem;
+    display: flex; flex-direction: column;
+    justify-content: space-between;
+  }
+  .auth-left-top .eyebrow {
+    font-size: 0.72rem; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    font-weight: 500; margin-bottom: 2rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .auth-left-top .eyebrow::before { content: ''; width: 16px; height: 1px; background: var(--accent); }
+  .auth-left-top h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 3vw, 3rem);
+    font-weight: 800; letter-spacing: -0.04em;
+    line-height: 1.1; margin-bottom: 1rem;
+  }
+  .auth-left-top h2 span { color: transparent; -webkit-text-stroke: 1px rgba(255,255,255,0.25); }
+  .auth-left-top p { color: var(--muted); font-size: 0.88rem; line-height: 1.7; }
+
+  .auth-stats { display: flex; flex-direction: column; gap: 1rem; }
+  .auth-stat {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 1rem; background: var(--black3);
+    border: 1px solid var(--border); border-radius: 12px;
+  }
+  .auth-stat-icon {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: var(--accent-dim); border: 1px solid rgba(0,255,148,0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; flex-shrink: 0;
+  }
+  .auth-stat-text .title { font-size: 0.82rem; font-weight: 600; margin-bottom: 0.15rem; }
+  .auth-stat-text .sub { font-size: 0.75rem; color: var(--muted); }
+
+  /* Right panel - form */
+  .auth-right {
+    display: flex; align-items: center; justify-content: center;
+    padding: 3rem 2rem;
+  }
+  .auth-form-wrap { width: 100%; max-width: 380px; }
+  .auth-form-wrap h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.6rem; font-weight: 800;
+    letter-spacing: -0.03em; margin-bottom: 0.3rem;
+  }
+  .auth-form-wrap .sub {
+    font-size: 0.82rem; color: var(--muted); margin-bottom: 2rem;
+  }
+
+  .form-group { margin-bottom: 1rem; }
+  .form-group label {
+    display: block; font-size: 0.75rem;
+    color: var(--muted); margin-bottom: 0.4rem;
+    font-weight: 500; text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .form-group input {
+    width: 100%; padding: 0.75rem 1rem;
+    background: var(--black2); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--white);
+    font-family: 'Inter', sans-serif; font-size: 0.9rem;
+    outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .form-group input:focus {
+    border-color: rgba(0,255,148,0.4);
+    box-shadow: 0 0 0 3px rgba(0,255,148,0.06);
+  }
+  .form-group input::placeholder { color: var(--muted2); }
+
+  .auth-submit {
+    width: 100%; padding: 0.85rem;
+    background: var(--accent); color: var(--black);
+    border: none; border-radius: 10px;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.95rem; font-weight: 700;
+    cursor: pointer; margin-top: 0.5rem;
+    transition: all 0.15s;
+    letter-spacing: -0.01em;
+    box-shadow: 0 0 24px var(--accent-glow);
+  }
+  .auth-submit:hover { opacity: 0.9; transform: translateY(-1px); }
+
+  .auth-switch {
+    text-align: center; margin-top: 1.5rem;
+    font-size: 0.82rem; color: var(--muted);
+  }
+  .auth-switch a { color: var(--white); font-weight: 500; text-decoration: none; }
+  .auth-switch a:hover { color: var(--accent); }
+
+  .auth-divider {
+    display: flex; align-items: center; gap: 1rem;
+    margin: 1.5rem 0; color: var(--muted2); font-size: 0.75rem;
+  }
+  .auth-divider::before, .auth-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+
+  <!-- Left info panel -->
+  <div class="auth-left">
+    <div class="auth-left-top">
+      <div class="eyebrow">GetSync — getsync.space</div>
+      <h2>Track every<br/><span>rupee,</span><br/>effortlessly.</h2>
+      <p>Connect Gmail or paste SMS. GetSync auto-imports all your bank transactions and gives you real insights.</p>
+    </div>
+    <div class="auth-stats">
+      <div class="auth-stat">
+        <div class="auth-stat-icon">📧</div>
+        <div class="auth-stat-text">
+          <div class="title">Gmail Auto-Sync</div>
+          <div class="sub">Imports bank emails automatically</div>
+        </div>
+      </div>
+      <div class="auth-stat">
+        <div class="auth-stat-icon">🤖</div>
+        <div class="auth-stat-text">
+          <div class="title">AI Categorization</div>
+          <div class="sub">Every transaction tagged instantly</div>
+        </div>
+      </div>
+      <div class="auth-stat">
+        <div class="auth-stat-icon">🔒</div>
+        <div class="auth-stat-text">
+          <div class="title">Private & Secure</div>
+          <div class="sub">Your data is encrypted, always</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right form panel -->
+  <div class="auth-right">
+    <div class="auth-form-wrap">
+      {% if mode == "login" %}
+        <h3>Welcome back</h3>
+        <p class="sub">Sign in to your GetSync account</p>
+        <form method="POST" action="/login">
+      {% else %}
+        <h3>Create account</h3>
+        <p class="sub">Start tracking your finances for free</p>
+        <form method="POST" action="/register">
+      {% endif %}
+
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" name="email" placeholder="you@example.com" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" name="password" placeholder="••••••••" required minlength="8"
+                 autocomplete="{{ 'current-password' if mode == 'login' else 'new-password' }}" />
+        </div>
+        <button type="submit" class="auth-submit">
+          {{ "Sign in →" if mode == "login" else "Create account →" }}
+        </button>
+      </form>
+
+      <div class="auth-switch">
+        {% if mode == "login" %}
+          No account? <a href="/register">Sign up free</a>
+        {% else %}
+          Already have an account? <a href="/login">Sign in</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

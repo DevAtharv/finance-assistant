@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}GetSync{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --black: #0A0A0A;
+      --black2: #111111;
+      --black3: #1A1A1A;
+      --black4: #242424;
+      --white: #FAFAFA;
+      --white2: #F0F0F0;
+      --muted: #888888;
+      --muted2: #555555;
+      --accent: #00FF94;
+      --accent-dim: rgba(0,255,148,0.08);
+      --accent-glow: rgba(0,255,148,0.15);
+      --red: #FF4D6D;
+      --border: rgba(255,255,255,0.07);
+      --sidebar-w: 80px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--black);
+      color: var(--white);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+    }
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--black2);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      align-items: center;
+      padding: 1.5rem 0 2rem;
+      position: fixed; left: 0; top: 0; bottom: 0;
+      z-index: 100;
+    }
+    .sidebar-logo {
+      width: 46px; height: 46px;
+      background: var(--white);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 2.5rem;
+      text-decoration: none; flex-shrink: 0;
+    }
+    .sidebar-logo span {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800; font-size: 0.95rem;
+      color: var(--black); letter-spacing: -0.05em;
+    }
+    .sidebar-nav {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 0.4rem; flex: 1;
+    }
+    .sidebar-link {
+      width: 46px; height: 46px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted); text-decoration: none;
+      transition: all 0.15s; position: relative;
+    }
+    .sidebar-link svg { width: 19px; height: 19px; }
+    .sidebar-link:hover { background: var(--black3); color: var(--white); }
+    .sidebar-link.active { background: var(--black3); color: var(--white); }
+    .sidebar-link.active::after {
+      content: ''; position: absolute;
+      left: 0; top: 50%; transform: translateY(-50%);
+      width: 2px; height: 18px;
+      background: var(--accent); border-radius: 0 2px 2px 0;
+    }
+    .sidebar-bottom {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 0.5rem;
+    }
+    .sidebar-add {
+      width: 46px; height: 46px;
+      background: var(--accent); border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--black); text-decoration: none;
+      font-size: 1.4rem; font-weight: 300;
+      transition: all 0.15s;
+      box-shadow: 0 0 24px var(--accent-glow);
+    }
+    .sidebar-add:hover { transform: scale(1.05); }
+    .main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 2rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10,10,10,0.92);
+      backdrop-filter: blur(20px);
+      position: sticky; top: 0; z-index: 50;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 0.8rem; }
+    .topbar-brand { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.05rem; letter-spacing: -0.03em; }
+    .topbar-brand span { color: var(--accent); }
+    .topbar-divider { width: 1px; height: 18px; background: var(--border); }
+    .topbar-page { font-size: 0.8rem; color: var(--muted); }
+    .topbar-right { display: flex; gap: 0.6rem; align-items: center; }
+    .topbar-avatar {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--black4); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700; color: var(--accent);
+      font-family: 'Syne', sans-serif;
+    }
+    .topbar-user { font-size: 0.8rem; color: var(--muted); max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .btn {
+      padding: 0.48rem 1.1rem; border-radius: 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem; font-weight: 500;
+      cursor: pointer; border: none; transition: all 0.15s;
+      text-decoration: none; display: inline-flex;
+      align-items: center; gap: 0.35rem; white-space: nowrap;
+    }
+    .btn-accent { background: var(--accent); color: var(--black); font-weight: 600; box-shadow: 0 0 20px var(--accent-glow); }
+    .btn-accent:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-outline { background: transparent; color: var(--white); border: 1px solid var(--border); }
+    .btn-outline:hover { border-color: var(--muted2); background: var(--black3); }
+    .btn-ghost { background: var(--black3); color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--white); }
+    .icon-btn {
+      width: 32px; height: 32px; background: var(--black3);
+      border: 1px solid var(--border); border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted); cursor: pointer; transition: all 0.15s;
+      text-decoration: none;
+    }
+    .icon-btn:hover { border-color: var(--muted2); color: var(--white); }
+    .card { background: var(--black2); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; }
+    .flash-wrap { padding: 1rem 2rem 0; }
+    .flash { padding: 0.65rem 1rem; border-radius: 8px; margin-bottom: 0.4rem; font-size: 0.82rem; }
+    .flash.error { background: rgba(255,77,109,0.07); border: 1px solid rgba(255,77,109,0.2); color: var(--red); }
+    .flash.success { background: var(--accent-dim); border: 1px solid rgba(0,255,148,0.15); color: var(--accent); }
+    .heading { font-family: 'Syne', sans-serif; font-weight: 800; letter-spacing: -0.03em; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <aside class="sidebar">
+    <a href="/" class="sidebar-logo"><span>GS</span></a>
+    <nav class="sidebar-nav">
+    {% if session.user_id %}
+      <a href="/dashboard" title="Dashboard" class="sidebar-link {% if request.path == '/dashboard' %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      </a>
+      <a href="/ingest" title="Add Transactions" class="sidebar-link {% if request.path == '/ingest' %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </a>
+      <a href="/report" title="Reports" class="sidebar-link">
+        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      </a>
+    {% endif %}
+    </nav>
+    <div class="sidebar-bottom">
+    {% if session.user_id %}
+      <a href="/gmail/connect" title="Gmail Sync" class="sidebar-link">
+        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      </a>
+      <a href="/logout" title="Logout" class="sidebar-link">
+        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </a>
+      <a href="/ingest" class="sidebar-add" title="Add">+</a>
+    {% else %}
+      <a href="/login" class="sidebar-link" title="Login">
+        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </a>
+    {% endif %}
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-brand">Get<span>Sync</span></div>
+        <div class="topbar-divider"></div>
+        <span class="topbar-page">{% block page_title %}Home{% endblock %}</span>
+      </div>
+      <div class="topbar-right">
+        {% if session.user_id %}
+          <span class="topbar-user">{{ session.email.split('@')[0] if session.email else 'User' }}</span>
+          <div class="topbar-avatar">{{ session.email[0].upper() if session.email else 'U' }}</div>
+          <a href="/ingest" class="icon-btn" title="Add">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </a>
+          <a href="/logout" class="icon-btn" title="Logout">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </a>
+        {% else %}
+          <a href="/login" class="btn btn-ghost">Sign in</a>
+          <a href="/register" class="btn btn-accent">Get Started</a>
+        {% endif %}
+      </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-wrap">
+          {% for cat, msg in messages %}
+            <div class="flash {{ cat }}">{{ msg }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

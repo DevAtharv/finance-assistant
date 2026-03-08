@@ -1,0 +1,472 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — GetSync{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  .dashboard { padding: 2rem; flex: 1; }
+
+  /* Top row */
+  .dash-toprow {
+    display: flex; align-items: flex-start;
+    justify-content: space-between; flex-wrap: wrap;
+    gap: 1rem; margin-bottom: 2rem;
+  }
+  .dash-toprow h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.8rem; font-weight: 800;
+    letter-spacing: -0.04em; line-height: 1;
+  }
+  .dash-toprow .sub { color: var(--muted); font-size: 0.82rem; margin-top: 0.3rem; }
+  .dash-controls { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+
+  .month-input {
+    background: var(--black2); border: 1px solid var(--border);
+    color: var(--white); padding: 0.45rem 0.9rem;
+    border-radius: 8px; font-family: 'Inter', sans-serif;
+    font-size: 0.8rem; outline: none; cursor: pointer;
+  }
+
+  /* Gmail bar */
+  .gmail-bar {
+    background: var(--black2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 0.9rem 1.2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;
+  }
+  .gmail-bar-left { display: flex; align-items: center; gap: 0.75rem; }
+  .gmail-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--muted2); flex-shrink: 0;
+  }
+  .gmail-dot.connected { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+  .gmail-bar-text { font-size: 0.82rem; }
+  .gmail-bar-text .title { font-weight: 500; margin-bottom: 0.1rem; }
+  .gmail-bar-text .sub { color: var(--muted); font-size: 0.75rem; }
+  .gmail-bar-right { display: flex; gap: 0.5rem; align-items: center; }
+  .sync-badge {
+    font-size: 0.72rem; padding: 0.2rem 0.6rem;
+    border-radius: 999px; border: 1px solid var(--border);
+    background: var(--black3); color: var(--muted);
+  }
+  .sync-badge.ok { border-color: rgba(0,255,148,0.2); color: var(--accent); background: var(--accent-dim); }
+  .sync-badge.err { border-color: rgba(255,77,109,0.2); color: var(--red); }
+  .btn-connect {
+    padding: 0.4rem 1rem; background: var(--black3);
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--white); font-size: 0.78rem; font-weight: 500;
+    font-family: 'Inter', sans-serif; cursor: pointer;
+    text-decoration: none; transition: all 0.15s;
+  }
+  .btn-connect:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-sync-now {
+    padding: 0.4rem 1rem; background: var(--accent-dim);
+    border: 1px solid rgba(0,255,148,0.2); border-radius: 8px;
+    color: var(--accent); font-size: 0.78rem; font-weight: 600;
+    font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-sync-now:hover { background: var(--accent); color: var(--black); }
+
+  /* Stat cards */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 1px; background: var(--border);
+    border: 1px solid var(--border); border-radius: 16px;
+    overflow: hidden; margin-bottom: 1.5rem;
+  }
+  @media (max-width: 900px) { .stats-grid { grid-template-columns: 1fr 1fr; } }
+  .stat-cell {
+    background: var(--black2); padding: 1.5rem;
+    transition: background 0.15s;
+  }
+  .stat-cell:hover { background: var(--black3); }
+  .stat-cell .lbl {
+    font-size: 0.72rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 0.75rem; display: flex;
+    align-items: center; gap: 0.4rem;
+  }
+  .stat-cell .val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.7rem; font-weight: 500; line-height: 1;
+    margin-bottom: 0.4rem;
+  }
+  .stat-cell .val.green { color: var(--accent); }
+  .stat-cell .val.red { color: var(--red); }
+  .stat-cell .hint { font-size: 0.72rem; color: var(--muted2); }
+
+  /* Main grid */
+  .main-grid {
+    display: grid; grid-template-columns: 1fr 320px;
+    gap: 1.5rem; margin-bottom: 1.5rem;
+  }
+  @media (max-width: 1100px) { .main-grid { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--black2); border: 1px solid var(--border);
+    border-radius: 16px; padding: 1.5rem;
+  }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+  .panel-title {
+    font-family: 'Syne', sans-serif; font-size: 0.88rem;
+    font-weight: 700; letter-spacing: -0.02em;
+  }
+  .panel-action { font-size: 0.75rem; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+  .panel-action:hover { color: var(--accent); }
+
+  canvas { max-height: 200px; }
+
+  /* Transactions */
+  .txn-item {
+    display: flex; align-items: center; gap: 0.8rem;
+    padding: 0.65rem 0;
+    border-bottom: 1px solid var(--border2);
+    transition: background 0.15s;
+  }
+  .txn-item:last-child { border-bottom: none; }
+  .txn-item:hover { margin: 0 -0.5rem; padding-left: 0.5rem; padding-right: 0.5rem; background: var(--black3); border-radius: 8px; border-bottom-color: transparent; }
+  .txn-bullet {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .txn-info { flex: 1; min-width: 0; }
+  .txn-name { font-size: 0.82rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .txn-meta { font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem; }
+  .txn-amt { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; font-weight: 500; }
+  .txn-amt.debit { color: var(--red); }
+  .txn-amt.credit { color: var(--accent); }
+
+  /* Bottom grid */
+  .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  @media (max-width: 900px) { .bottom-grid { grid-template-columns: 1fr; } }
+
+  .donut-wrap { position: relative; width: 140px; height: 140px; margin: 0 auto 1.5rem; }
+  .donut-center {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%); text-align: center;
+  }
+  .donut-center .big { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; font-weight: 500; }
+  .donut-center .sm { font-size: 0.68rem; color: var(--muted); }
+
+  .legend-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.4rem 0; font-size: 0.78rem;
+    border-bottom: 1px solid var(--border2);
+  }
+  .legend-row:last-child { border-bottom: none; }
+  .legend-left { display: flex; align-items: center; gap: 0.5rem; }
+  .legend-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .legend-pct { color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; }
+
+  .merchant-row {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.5rem 0.75rem; border-radius: 8px;
+    background: var(--black3); margin-bottom: 0.4rem;
+    font-size: 0.8rem;
+  }
+  .merchant-n { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: var(--muted2); width: 16px; }
+  .merchant-name { flex: 1; font-weight: 500; }
+  .merchant-amt { font-family: 'JetBrains Mono', monospace; color: var(--accent); font-size: 0.78rem; }
+
+  .alert-item {
+    padding: 0.65rem 0.9rem; background: var(--black3);
+    border-radius: 8px; margin-bottom: 0.4rem;
+    border-left: 2px solid #F0A500;
+    font-size: 0.78rem; color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* States */
+  .loading-state { text-align: center; padding: 5rem 2rem; color: var(--muted); }
+  .loader {
+    width: 32px; height: 32px; border: 2px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.7s linear infinite; margin: 0 auto 1rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty-state { text-align: center; padding: 5rem 2rem; }
+  .empty-state h3 { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.5rem; }
+  .empty-state p { color: var(--muted); font-size: 0.85rem; margin-bottom: 2rem; }
+  .empty-cta { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+
+  <!-- Top row -->
+  <div class="dash-toprow">
+    <div>
+      <h1>Dashboard</h1>
+      <p class="sub">Your financial overview</p>
+    </div>
+    <div class="dash-controls">
+      <input type="month" id="monthPicker" value="{{ month }}" class="month-input" />
+      <a href="/report?month={{ month }}" class="btn btn-ghost">↓ Report</a>
+      <a href="/ingest" class="btn btn-accent">+ Add data</a>
+    </div>
+  </div>
+
+  <!-- Gmail bar -->
+  <div class="gmail-bar">
+    <div class="gmail-bar-left">
+      <div class="gmail-dot" id="gmailDot"></div>
+      <div class="gmail-bar-text">
+        <div class="title">Gmail Sync</div>
+        <div class="sub" id="gmailSubtext">Connect Gmail to auto-import bank transactions</div>
+      </div>
+    </div>
+    <div class="gmail-bar-right">
+      <span class="sync-badge" id="syncBadge"></span>
+      <div id="gmailBtnWrap">
+        <a href="/gmail/connect" class="btn-connect">Connect Gmail →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div id="loadingState" class="loading-state">
+    <div class="loader"></div>
+    <p>Loading transactions...</p>
+  </div>
+
+  <!-- Empty -->
+  <div id="emptyState" class="empty-state" style="display:none;">
+    <div style="font-size:2.5rem; margin-bottom:1rem; opacity:0.3;">◎</div>
+    <h3>No transactions yet</h3>
+    <p>Connect Gmail or manually add transactions to get started.</p>
+    <div class="empty-cta">
+      <a href="/gmail/connect" class="btn btn-accent">📧 Connect Gmail</a>
+      <a href="/ingest" class="btn btn-outline">Paste SMS</a>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div id="dashContent" style="display:none;">
+
+    <!-- Stats -->
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <!-- Main grid -->
+    <div class="main-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Spending Trend</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:var(--muted);" id="trendTotal"></span>
+        </div>
+        <canvas id="trendChart"></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Recent</span>
+          <a href="/ingest" class="panel-action">+ add</a>
+        </div>
+        <div id="recentList"></div>
+      </div>
+    </div>
+
+    <!-- Bottom -->
+    <div class="bottom-grid">
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">By Category</span></div>
+        <div class="donut-wrap">
+          <canvas id="categoryChart"></canvas>
+          <div class="donut-center" id="donutCenter">
+            <div class="big">—</div>
+            <div class="sm">total</div>
+          </div>
+        </div>
+        <div id="categoryLegend"></div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:1.5rem;">
+        <div class="panel" style="flex:1;">
+          <div class="panel-header"><span class="panel-title">Top Merchants</span></div>
+          <div id="merchantsList"></div>
+        </div>
+        <div class="panel" style="flex:1;">
+          <div class="panel-header"><span class="panel-title">Alerts</span></div>
+          <div id="alertsList"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let catChart, trendChart;
+const COLORS = ['#00FF94','#FF4D6D','#3B82F6','#F59E0B','#8B5CF6','#EC4899','#06B6D4','#84CC16'];
+
+async function checkGmail() {
+  try {
+    const r = await fetch('/gmail/status');
+    const d = await r.json();
+    if (d.connected) {
+      document.getElementById('gmailDot').classList.add('connected');
+      document.getElementById('gmailSubtext').textContent = '✓ Connected — transactions auto-imported';
+      document.getElementById('gmailBtnWrap').innerHTML = `
+        <button class="btn-sync-now" onclick="syncGmail()">↻ Sync now</button>
+        <a href="/gmail/disconnect" style="font-size:0.72rem; color:var(--muted); text-decoration:none; margin-left:0.5rem;">disconnect</a>
+      `;
+    }
+  } catch(e) {}
+}
+
+async function syncGmail() {
+  const badge = document.getElementById('syncBadge');
+  badge.textContent = 'syncing...'; badge.className = 'sync-badge';
+  try {
+    const r = await fetch('/gmail/sync');
+    const d = await r.json();
+    if (d.success) {
+      badge.textContent = d.count > 0 ? `+${d.count} imported` : 'up to date';
+      badge.className = 'sync-badge ok';
+      if (d.count > 0) setTimeout(() => loadDashboard('{{ month }}'), 800);
+    } else {
+      badge.textContent = 'sync failed'; badge.className = 'sync-badge err';
+    }
+  } catch(e) {
+    badge.textContent = 'error'; badge.className = 'sync-badge err';
+  }
+}
+
+async function loadDashboard(month) {
+  document.getElementById('loadingState').style.display = 'block';
+  document.getElementById('dashContent').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'none';
+  try {
+    const r = await fetch(`/api/dashboard?month=${month}`);
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    if (!d.summary.transaction_count) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('emptyState').style.display = 'block';
+      return;
+    }
+    renderStats(d.summary);
+    renderTrend(d.daily_trend);
+    renderCategory(d.category_breakdown, d.summary.total_expense);
+    renderRecent(d.recent_transactions);
+    renderMerchants(d.top_merchants);
+    renderAlerts(d.alerts);
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('dashContent').style.display = 'block';
+  } catch(e) {
+    document.getElementById('loadingState').innerHTML = `<p style="color:var(--red)">Error: ${e.message}</p>`;
+  }
+}
+
+function renderStats(s) {
+  document.getElementById('statsGrid').innerHTML = [
+    { lbl: 'Total Earnings', val: `₹${fmt(s.total_income)}`, cls: 'green', hint: 'this month' },
+    { lbl: 'Total Expenses', val: `₹${fmt(s.total_expense)}`, cls: 'red', hint: 'this month' },
+    { lbl: 'Net Savings', val: `₹${fmt(s.savings)}`, cls: s.savings >= 0 ? 'green' : 'red', hint: `${s.savings_rate}% savings rate` },
+    { lbl: 'Transactions', val: s.transaction_count, cls: '', hint: 'total entries' },
+  ].map(c => `
+    <div class="stat-cell">
+      <div class="lbl">${c.lbl}</div>
+      <div class="val ${c.cls}">${c.val}</div>
+      <div class="hint">${c.hint}</div>
+    </div>
+  `).join('');
+}
+
+function renderTrend(trend) {
+  if (trendChart) trendChart.destroy();
+  const total = trend.reduce((a, b) => a + b.amount, 0);
+  document.getElementById('trendTotal').textContent = `₹${fmtK(total)} total`;
+  trendChart = new Chart(document.getElementById('trendChart'), {
+    type: 'bar',
+    data: {
+      labels: trend.map(d => d.date.slice(5)),
+      datasets: [{
+        data: trend.map(d => d.amount),
+        backgroundColor: trend.map((_, i) => i === trend.length - 1 ? '#00FF94' : 'rgba(255,255,255,0.06)'),
+        borderRadius: 4, borderSkipped: false,
+      }]
+    },
+    options: {
+      scales: {
+        x: { ticks: { color: '#555', font: { size: 9, family: 'JetBrains Mono' } }, grid: { display: false } },
+        y: { ticks: { color: '#555', font: { size: 9 }, callback: v => `₹${fmtK(v)}` }, grid: { color: 'rgba(255,255,255,0.03)' } }
+      },
+      plugins: { legend: { display: false } },
+    }
+  });
+}
+
+function renderCategory(cats, total) {
+  if (catChart) catChart.destroy();
+  document.getElementById('donutCenter').innerHTML = `<div class="big">₹${fmtK(total)}</div><div class="sm">spent</div>`;
+  catChart = new Chart(document.getElementById('categoryChart'), {
+    type: 'doughnut',
+    data: {
+      labels: cats.map(c => c.category),
+      datasets: [{ data: cats.map(c => c.amount), backgroundColor: COLORS, borderWidth: 0, hoverOffset: 4 }]
+    },
+    options: {
+      cutout: '75%',
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ₹${fmt(ctx.raw)}` } } }
+    }
+  });
+  document.getElementById('categoryLegend').innerHTML = cats.slice(0, 5).map((c, i) => `
+    <div class="legend-row">
+      <div class="legend-left">
+        <div class="legend-dot" style="background:${COLORS[i]}"></div>
+        <span style="font-size:0.78rem;">${c.category}</span>
+      </div>
+      <span class="legend-pct">${c.percentage}%</span>
+    </div>
+  `).join('');
+}
+
+function renderRecent(txns) {
+  const catColors = { Food:'#F59E0B', Transport:'#3B82F6', Shopping:'#8B5CF6', Bills:'#00FF94', Income:'#00FF94', Other:'#555' };
+  document.getElementById('recentList').innerHTML = (txns || []).slice(0, 7).map(t => `
+    <div class="txn-item">
+      <div class="txn-bullet" style="background:${catColors[t.category] || '#555'}"></div>
+      <div class="txn-info">
+        <div class="txn-name">${t.merchant_clean || t.merchant || 'Unknown'}</div>
+        <div class="txn-meta">${t.category} · ${t.date}</div>
+      </div>
+      <div class="txn-amt ${t.type}">${t.type === 'debit' ? '−' : '+'}₹${fmt(t.amount)}</div>
+    </div>
+  `).join('') || '<p style="color:var(--muted);font-size:0.8rem;text-align:center;padding:1rem;">No transactions</p>';
+}
+
+function renderMerchants(merchants) {
+  document.getElementById('merchantsList').innerHTML = (merchants || []).map((m, i) => `
+    <div class="merchant-row">
+      <span class="merchant-n">${String(i+1).padStart(2,'0')}</span>
+      <span class="merchant-name">${m.merchant}</span>
+      <span class="merchant-amt">₹${fmt(m.amount)}</span>
+    </div>
+  `).join('') || '<p style="color:var(--muted);font-size:0.78rem;">No data</p>';
+}
+
+function renderAlerts(alerts) {
+  document.getElementById('alertsList').innerHTML = (alerts || []).map(a => `
+    <div class="alert-item">${a.icon} ${a.message}</div>
+  `).join('') || '<p style="color:var(--muted);font-size:0.78rem;">✓ No alerts this month</p>';
+}
+
+function fmt(n) { return Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 }); }
+function fmtK(n) {
+  if (n >= 100000) return (n/100000).toFixed(1) + 'L';
+  if (n >= 1000) return (n/1000).toFixed(0) + 'k';
+  return Math.round(n);
+}
+
+document.getElementById('monthPicker').addEventListener('change', function() {
+  history.pushState({}, '', `/dashboard?month=${this.value}`);
+  loadDashboard(this.value);
+});
+
+checkGmail();
+loadDashboard('{{ month }}');
+</script>
+{% endblock %}

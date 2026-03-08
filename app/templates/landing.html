@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+{% block title %}GetSync — Know where your money goes{% endblock %}
+{% block page_title %}Home{% endblock %}
+
+{% block head %}
+<style>
+  .landing { flex: 1; }
+
+  /* HERO */
+  .hero {
+    padding: 6rem 3rem 5rem;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem; align-items: center;
+    max-width: 1200px; margin: 0 auto;
+  }
+  @media (max-width: 900px) { .hero { grid-template-columns: 1fr; padding: 4rem 2rem; } }
+
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    font-size: 0.75rem; font-weight: 500;
+    color: var(--accent); letter-spacing: 0.1em;
+    text-transform: uppercase; margin-bottom: 1.5rem;
+  }
+  .hero-eyebrow::before {
+    content: ''; width: 20px; height: 1px; background: var(--accent);
+  }
+
+  .hero-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(3rem, 5vw, 5rem);
+    font-weight: 800; line-height: 1.05;
+    letter-spacing: -0.04em;
+    margin-bottom: 1.5rem;
+  }
+  .hero-title .line2 {
+    color: transparent;
+    -webkit-text-stroke: 1px rgba(255,255,255,0.3);
+  }
+  .hero-title .accent { color: var(--accent); -webkit-text-stroke: 0; }
+
+  .hero-sub {
+    font-size: 1rem; color: var(--muted);
+    line-height: 1.7; margin-bottom: 2.5rem;
+    max-width: 420px;
+  }
+  .hero-cta { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+  .btn-lg { padding: 0.75rem 1.8rem; font-size: 0.9rem; border-radius: 10px; }
+
+  /* Hero visual */
+  .hero-visual {
+    background: var(--black2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2rem; aspect-ratio: 4/3;
+    display: flex; flex-direction: column; gap: 1rem;
+    position: relative; overflow: hidden;
+  }
+  .hero-visual::before {
+    content: '';
+    position: absolute; top: -50%; right: -50%;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(0,255,148,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .mock-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 1rem; border-bottom: 1px solid var(--border);
+  }
+  .mock-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+  .mock-dots { display: flex; gap: 0.4rem; }
+  .mock-title { font-size: 0.75rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+  .mock-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .mock-card {
+    background: var(--black3); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1rem;
+  }
+  .mock-card .lbl { font-size: 0.68rem; color: var(--muted); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .mock-card .val { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; font-weight: 500; }
+  .mock-card .val.green { color: var(--accent); }
+  .mock-card .val.red { color: var(--red); }
+  .mock-bars { display: flex; align-items: flex-end; gap: 0.4rem; height: 60px; margin-top: 0.5rem; }
+  .mock-bar {
+    flex: 1; background: var(--black4); border-radius: 4px 4px 0 0;
+    transition: height 0.3s;
+  }
+  .mock-bar.lit { background: var(--accent); opacity: 0.7; }
+  .mock-txns { display: flex; flex-direction: column; gap: 0.5rem; }
+  .mock-txn {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.5rem 0.75rem; background: var(--black3);
+    border-radius: 8px; font-size: 0.75rem;
+  }
+  .mock-txn .name { color: var(--muted); }
+  .mock-txn .amt { font-family: 'JetBrains Mono', monospace; color: var(--red); }
+  .mock-txn .amt.cr { color: var(--accent); }
+
+  /* STRIP */
+  .strip {
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 1.2rem 3rem;
+    display: flex; align-items: center;
+    gap: 3rem; overflow: hidden;
+    background: var(--black2);
+  }
+  .strip-item {
+    display: flex; align-items: center; gap: 0.6rem;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .strip-item span { font-size: 0.8rem; color: var(--muted); }
+  .strip-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+
+  /* FEATURES */
+  .features-section {
+    padding: 5rem 3rem;
+    max-width: 1200px; margin: 0 auto;
+  }
+  .section-label {
+    font-size: 0.72rem; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.12em;
+    font-weight: 500; margin-bottom: 1rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .section-label::before { content: ''; width: 16px; height: 1px; background: var(--accent); }
+  .section-heading {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 3.5vw, 3rem);
+    font-weight: 800; letter-spacing: -0.03em;
+    margin-bottom: 3rem; max-width: 500px;
+    line-height: 1.1;
+  }
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px; background: var(--border);
+    border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+  }
+  @media (max-width: 800px) { .features-grid { grid-template-columns: 1fr; } }
+  .feat {
+    background: var(--black);
+    padding: 2rem;
+    transition: background 0.2s;
+  }
+  .feat:hover { background: var(--black2); }
+  .feat-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem; color: var(--muted2);
+    margin-bottom: 1.5rem;
+  }
+  .feat-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: var(--black3); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; margin-bottom: 1rem;
+  }
+  .feat h3 {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 0.95rem; margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+  }
+  .feat p { font-size: 0.82rem; color: var(--muted); line-height: 1.6; }
+
+  /* HOW IT WORKS */
+  .how-section {
+    padding: 5rem 3rem;
+    border-top: 1px solid var(--border);
+    max-width: 1200px; margin: 0 auto;
+  }
+  .steps-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 2rem; margin-top: 3rem;
+  }
+  @media (max-width: 800px) { .steps-grid { grid-template-columns: 1fr 1fr; } }
+  .step { position: relative; }
+  .step-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 2.5rem; font-weight: 500;
+    color: var(--black4); line-height: 1;
+    margin-bottom: 1rem;
+  }
+  .step h4 {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 0.9rem; margin-bottom: 0.4rem;
+  }
+  .step p { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+
+  /* CTA */
+  .cta-section {
+    margin: 3rem;
+    background: var(--black2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4rem 3rem;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 2rem; flex-wrap: wrap;
+    position: relative; overflow: hidden;
+  }
+  .cta-section::before {
+    content: '';
+    position: absolute; right: -100px; top: -100px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(0,255,148,0.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .cta-left h2 {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: clamp(1.5rem, 3vw, 2.5rem);
+    letter-spacing: -0.03em; margin-bottom: 0.5rem;
+  }
+  .cta-left p { color: var(--muted); font-size: 0.9rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="landing">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-left">
+      <div class="hero-eyebrow">AI-Powered Finance Tracker</div>
+      <h1 class="hero-title">
+        Know where<br/>
+        <span class="line2">your money</span><br/>
+        <span class="accent">actually goes.</span>
+      </h1>
+      <p class="hero-sub">
+        Connect your Gmail or paste bank SMS. GetSync auto-imports, categorizes, and analyzes every transaction — built for Indian users.
+      </p>
+      <div class="hero-cta">
+        <a href="/register" class="btn btn-accent btn-lg">Start for free →</a>
+        <a href="/login" class="btn btn-outline btn-lg">Sign in</a>
+      </div>
+    </div>
+
+    <!-- Mock dashboard -->
+    <div class="hero-visual">
+      <div class="mock-topbar">
+        <div class="mock-dots">
+          <div class="mock-dot"></div>
+          <div class="mock-dot" style="background:var(--muted2)"></div>
+          <div class="mock-dot" style="background:var(--muted2)"></div>
+        </div>
+        <div class="mock-title">getsync.space/dashboard</div>
+        <div style="width:50px"></div>
+      </div>
+      <div class="mock-cards">
+        <div class="mock-card">
+          <div class="lbl">Spent this month</div>
+          <div class="val red">₹24,850</div>
+        </div>
+        <div class="mock-card">
+          <div class="lbl">Net savings</div>
+          <div class="val green">₹8,150</div>
+        </div>
+      </div>
+      <div class="mock-bars">
+        <div class="mock-bar" style="height:30%"></div>
+        <div class="mock-bar" style="height:55%"></div>
+        <div class="mock-bar" style="height:40%"></div>
+        <div class="mock-bar lit" style="height:75%"></div>
+        <div class="mock-bar" style="height:60%"></div>
+        <div class="mock-bar" style="height:45%"></div>
+        <div class="mock-bar lit" style="height:85%"></div>
+        <div class="mock-bar" style="height:50%"></div>
+      </div>
+      <div class="mock-txns">
+        <div class="mock-txn"><span class="name">Swiggy</span><span class="amt">-₹450</span></div>
+        <div class="mock-txn"><span class="name">Salary credit</span><span class="amt cr">+₹45,000</span></div>
+        <div class="mock-txn"><span class="name">Amazon</span><span class="amt">-₹1,299</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STRIP -->
+  <div class="strip">
+    <div class="strip-item"><div class="strip-dot"></div><span>HDFC Bank</span></div>
+    <div class="strip-item"><div class="strip-dot"></div><span>SBI</span></div>
+    <div class="strip-item"><div class="strip-dot"></div><span>ICICI Bank</span></div>
+    <div class="strip-item"><div class="strip-dot"></div><span>Axis Bank</span></div>
+    <div class="strip-item"><div class="strip-dot"></div><span>Kotak</span></div>
+    <div class="strip-item"><div class="strip-dot"></div><span>UPI / PhonePe</span></div>
+    <div class="strip-item"><div class="strip-dot"></div><span>Paytm</span></div>
+    <div class="strip-item"><div class="strip-dot"></div><span>Gmail Auto-Sync</span></div>
+  </div>
+
+  <!-- FEATURES -->
+  <section class="features-section">
+    <div class="section-label">What we do</div>
+    <h2 class="section-heading">Everything you need to own your finances</h2>
+    <div class="features-grid">
+      <div class="feat">
+        <div class="feat-num">01</div>
+        <div class="feat-icon">📧</div>
+        <h3>Gmail Auto-Sync</h3>
+        <p>Connect once. GetSync reads your bank emails and imports transactions automatically — zero manual work.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-num">02</div>
+        <div class="feat-icon">📱</div>
+        <h3>SMS Paste Import</h3>
+        <p>Copy bank SMS messages and paste in bulk. HDFC, SBI, ICICI, Axis, Kotak parsed in seconds.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-num">03</div>
+        <div class="feat-icon">🤖</div>
+        <h3>AI Categorization</h3>
+        <p>Every transaction auto-tagged — Food, Transport, Bills, Shopping and more. Powered by GPT.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-num">04</div>
+        <div class="feat-icon">📊</div>
+        <h3>Smart Dashboard</h3>
+        <p>Charts, trends, category breakdowns, top merchants, and smart alerts — all in one view.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-num">05</div>
+        <div class="feat-icon">📄</div>
+        <h3>PDF Reports</h3>
+        <p>Download a detailed monthly report. Perfect for reviewing finances or sharing with your CA.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-num">06</div>
+        <div class="feat-icon">🔒</div>
+        <h3>Bank-Grade Security</h3>
+        <p>Data encrypted at rest. Raw files deleted after parsing. Your financial data stays yours only.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how-section">
+    <div class="section-label">How it works</div>
+    <h2 class="section-heading">Up and running in under 2 minutes</h2>
+    <div class="steps-grid">
+      <div class="step">
+        <div class="step-num">01</div>
+        <h4>Create account</h4>
+        <p>Sign up free in 30 seconds. No credit card needed.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <h4>Connect Gmail</h4>
+        <p>One click to authorize. We only read bank emails.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <h4>AI analyzes</h4>
+        <p>Transactions parsed, categorized and stored instantly.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">04</div>
+        <h4>Get insights</h4>
+        <p>View dashboard and download your monthly PDF report.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <div class="cta-section">
+    <div class="cta-left">
+      <h2>Start tracking smarter today.</h2>
+      <p>Join thousands of Indians managing money with GetSync.</p>
+    </div>
+    <a href="/register" class="btn btn-accent btn-lg">Create free account →</a>
+  </div>
+
+</div>
+{% endblock %}

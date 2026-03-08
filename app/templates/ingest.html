@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+{% block title %}Add Transactions — GetSync{% endblock %}
+{% block page_title %}Add Transactions{% endblock %}
+
+{% block head %}
+<style>
+  .ingest-page {
+    flex: 1; display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: calc(100vh - 57px);
+  }
+  @media (max-width: 800px) { .ingest-page { grid-template-columns: 1fr; } }
+
+  /* Left nav */
+  .ingest-left {
+    background: var(--black2);
+    border-right: 1px solid var(--border);
+    padding: 2rem 1.5rem;
+  }
+  .ingest-left h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem; font-weight: 800;
+    letter-spacing: -0.03em; margin-bottom: 0.3rem;
+  }
+  .ingest-left .sub { font-size: 0.78rem; color: var(--muted); margin-bottom: 2rem; line-height: 1.5; }
+
+  .method-list { display: flex; flex-direction: column; gap: 0.4rem; }
+  .method-btn {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.75rem 1rem; border-radius: 10px;
+    background: none; border: 1px solid transparent;
+    color: var(--muted); font-family: 'Inter', sans-serif;
+    font-size: 0.82rem; font-weight: 500;
+    cursor: pointer; text-align: left; transition: all 0.15s;
+    width: 100%;
+  }
+  .method-btn:hover { background: var(--black3); color: var(--white); }
+  .method-btn.active {
+    background: var(--black3);
+    border-color: var(--border);
+    color: var(--white);
+  }
+  .method-btn.active .method-dot { background: var(--accent); }
+  .method-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+  .method-icon { font-size: 1rem; }
+
+  .ingest-divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
+  .quick-tip {
+    background: var(--black3); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem;
+  }
+  .quick-tip .tip-label { font-size: 0.68rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin-bottom: 0.5rem; }
+  .quick-tip p { font-size: 0.75rem; color: var(--muted); line-height: 1.6; }
+
+  /* Right content */
+  .ingest-right { padding: 2rem; }
+
+  /* Panels */
+  .ingest-panel { display: none; }
+  .ingest-panel.active { display: block; }
+
+  .panel-heading {
+    font-family: 'Syne', sans-serif; font-size: 1.3rem;
+    font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.3rem;
+  }
+  .panel-sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 2rem; line-height: 1.6; }
+
+  /* Example box */
+  .example-box {
+    background: var(--black2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem;
+  }
+  .example-box .ex-label {
+    font-size: 0.68rem; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 600; margin-bottom: 0.75rem;
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+  .example-box .ex-label::before { content: ''; width: 12px; height: 1px; background: var(--accent); }
+  .example-box code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem; color: var(--muted);
+    display: block; line-height: 2;
+  }
+
+  /* Textarea */
+  .sms-textarea {
+    width: 100%; min-height: 200px;
+    background: var(--black2); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--white);
+    font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+    padding: 1rem; resize: vertical; outline: none;
+    transition: border-color 0.15s;
+    line-height: 1.8;
+  }
+  .sms-textarea:focus { border-color: rgba(0,255,148,0.3); }
+  .sms-textarea::placeholder { color: var(--muted2); }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 1px dashed var(--border);
+    border-radius: 12px; padding: 3rem 2rem;
+    text-align: center; cursor: pointer;
+    transition: all 0.15s; margin-bottom: 1.5rem;
+  }
+  .upload-zone:hover, .upload-zone.over {
+    border-color: rgba(0,255,148,0.4);
+    background: var(--accent-dim);
+  }
+  .upload-zone input { display: none; }
+  .upload-icon { font-size: 2rem; margin-bottom: 0.75rem; opacity: 0.5; }
+  .upload-zone h4 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; margin-bottom: 0.3rem; }
+  .upload-zone p { color: var(--muted); font-size: 0.78rem; }
+  .upload-zone .fname { color: var(--accent); font-size: 0.8rem; margin-top: 0.5rem; font-weight: 500; }
+
+  /* Submit */
+  .submit-row { display: flex; gap: 0.75rem; align-items: center; margin-top: 1.2rem; }
+  .submit-btn {
+    padding: 0.7rem 1.8rem;
+    background: var(--accent); color: var(--black);
+    border: none; border-radius: 10px;
+    font-family: 'Syne', sans-serif; font-size: 0.9rem;
+    font-weight: 700; cursor: pointer;
+    transition: all 0.15s;
+    box-shadow: 0 0 20px var(--accent-glow);
+    letter-spacing: -0.01em;
+  }
+  .submit-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .submit-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* Result */
+  .result-panel {
+    display: none; margin-top: 1.5rem;
+    background: var(--black2); border: 1px solid rgba(0,255,148,0.15);
+    border-radius: 12px; padding: 1.5rem;
+  }
+  .result-panel .result-head {
+    display: flex; align-items: center; gap: 0.6rem;
+    margin-bottom: 1rem;
+  }
+  .result-panel .result-head h4 {
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; color: var(--accent);
+  }
+  .result-panel .result-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem; color: var(--muted);
+    background: var(--black3); padding: 0.2rem 0.6rem;
+    border-radius: 999px; margin-left: auto;
+  }
+
+  .result-txn {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.5rem 0.75rem; background: var(--black3);
+    border-radius: 8px; margin-bottom: 0.3rem; font-size: 0.8rem;
+  }
+  .result-txn .cat {
+    font-size: 0.68rem; color: var(--accent);
+    background: var(--accent-dim); padding: 0.15rem 0.5rem;
+    border-radius: 999px; margin-left: 0.5rem;
+  }
+  .result-txn .amt { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+  .result-txn .amt.debit { color: var(--red); }
+  .result-txn .amt.credit { color: var(--accent); }
+
+  .error-panel {
+    display: none; margin-top: 1rem;
+    background: rgba(255,77,109,0.06); border: 1px solid rgba(255,77,109,0.2);
+    border-radius: 10px; padding: 0.9rem 1rem;
+    color: var(--red); font-size: 0.82rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ingest-page">
+
+  <!-- Left nav -->
+  <div class="ingest-left">
+    <h2>Add Transactions</h2>
+    <p class="sub">Choose how you want to import your bank data</p>
+
+    <div class="method-list">
+      <button class="method-btn active" onclick="switchPanel('sms', this)">
+        <div class="method-dot"></div>
+        <span class="method-icon">📱</span>
+        Paste SMS
+      </button>
+      <button class="method-btn" onclick="switchPanel('file', this)">
+        <div class="method-dot"></div>
+        <span class="method-icon">📄</span>
+        Upload Statement
+      </button>
+      <button class="method-btn" onclick="window.location='/gmail/connect'">
+        <div class="method-dot"></div>
+        <span class="method-icon">📧</span>
+        Connect Gmail
+      </button>
+    </div>
+
+    <div class="ingest-divider"></div>
+
+    <div class="quick-tip">
+      <div class="tip-label">💡 Pro tip</div>
+      <p>Gmail sync is the easiest — connect once and all future bank emails are auto-imported.</p>
+    </div>
+  </div>
+
+  <!-- Right panels -->
+  <div class="ingest-right">
+
+    <!-- SMS Panel -->
+    <div id="panel-sms" class="ingest-panel active">
+      <h2 class="panel-heading">Paste Bank SMS</h2>
+      <p class="panel-sub">
+        Open your SMS app → find bank messages → copy and paste below.<br/>
+        Separate each SMS with a blank line. Supports HDFC, SBI, ICICI, Axis, Kotak and more.
+      </p>
+
+      <div class="example-box">
+        <div class="ex-label">Supported formats</div>
+        <code>Rs.1,500.00 debited from a/c **1234 on 07-03-26. Info: UPI/Swiggy</code>
+        <code>Your a/c XXXX5678 debited by 299 on 07/03/2026, transfer to Netflix</code>
+        <code>ICICI Bank: Rs 850.00 debited from XX9012 on 07-Mar-26; UPI:Amazon</code>
+      </div>
+
+      <textarea class="sms-textarea" id="smsText" placeholder="Paste your bank SMS messages here...&#10;&#10;Each SMS on its own — separate with a blank line."></textarea>
+
+      <div class="submit-row">
+        <button class="submit-btn" id="smsBtn" onclick="submitSMS()">Parse & Import →</button>
+      </div>
+
+      <div class="result-panel" id="smsResult"></div>
+      <div class="error-panel" id="smsError"></div>
+    </div>
+
+    <!-- File Panel -->
+    <div id="panel-file" class="ingest-panel">
+      <h2 class="panel-heading">Upload Bank Statement</h2>
+      <p class="panel-sub">
+        Download your statement from net banking or the bank app.<br/>
+        Supports PDF and CSV from all major Indian banks.
+      </p>
+
+      <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" accept=".pdf,.csv" onchange="fileSelected(this)" />
+        <div class="upload-icon">↑</div>
+        <h4>Click to upload or drag & drop</h4>
+        <p>PDF or CSV · Max 10MB</p>
+        <p class="fname" id="fileName"></p>
+      </div>
+
+      <div class="submit-row">
+        <button class="submit-btn" id="fileBtn" onclick="submitFile()" disabled>Upload & Import →</button>
+      </div>
+
+      <div class="result-panel" id="fileResult"></div>
+      <div class="error-panel" id="fileError"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function switchPanel(name, el) {
+  document.querySelectorAll('.ingest-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.method-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`panel-${name}`).classList.add('active');
+  el.classList.add('active');
+}
+
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f) { document.getElementById('fileInput').files = e.dataTransfer.files; fileSelected({ files: [f] }); }
+});
+
+function fileSelected(input) {
+  const f = input.files[0];
+  if (f) {
+    document.getElementById('fileName').textContent = '✓ ' + f.name;
+    document.getElementById('fileBtn').disabled = false;
+  }
+}
+
+async function submitSMS() {
+  const text = document.getElementById('smsText').value.trim();
+  if (!text) return;
+  const btn = document.getElementById('smsBtn');
+  btn.disabled = true; btn.textContent = 'Parsing...';
+  try {
+    const fd = new FormData(); fd.append('sms_text', text);
+    const r = await fetch('/ingest/sms', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    showResult('sms', d);
+  } catch(e) {
+    showError('sms', e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Parse & Import →';
+  }
+}
+
+async function submitFile() {
+  const f = document.getElementById('fileInput').files[0];
+  if (!f) return;
+  const btn = document.getElementById('fileBtn');
+  btn.disabled = true; btn.textContent = 'Processing...';
+  try {
+    const fd = new FormData(); fd.append('file', f);
+    const r = await fetch('/ingest/file', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    showResult('file', d);
+  } catch(e) {
+    showError('file', e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Upload & Import →';
+  }
+}
+
+function showResult(type, data) {
+  const el = document.getElementById(`${type}Result`);
+  const preview = (data.transactions || []).slice(0, 5).map(t => `
+    <div class="result-txn">
+      <span>${t.merchant_clean || t.merchant}<span class="cat">${t.category}</span></span>
+      <span class="amt ${t.type}">${t.type === 'debit' ? '−' : '+'}₹${Number(t.amount).toLocaleString('en-IN')}</span>
+    </div>
+  `).join('');
+  el.innerHTML = `
+    <div class="result-head">
+      <h4>✓ Import successful</h4>
+      <span class="result-count">${data.count} transactions</span>
+    </div>
+    ${preview}
+    <a href="/dashboard" class="submit-btn" style="display:inline-block; margin-top:1rem; text-decoration:none; text-align:center; width:100%;">View Dashboard →</a>
+  `;
+  el.style.display = 'block';
+  document.getElementById(`${type}Error`).style.display = 'none';
+}
+
+function showError(type, msg) {
+  const el = document.getElementById(`${type}Error`);
+  el.textContent = '✕ ' + msg;
+  el.style.display = 'block';
+  document.getElementById(`${type}Result`).style.display = 'none';
+}
+</script>
+{% endblock %}
