@@ -131,7 +131,7 @@ def sync():
             return jsonify({"error": "Missing refresh token. Please reconnect Gmail."}), 400
 
         gmail_service = get_gmail_service(token_data)
-        transactions = fetch_bank_emails(gmail_service, max_results=100)
+        transactions = stream_bank_emails(gmail_service, max_results=100)
 
         if not transactions:
             return jsonify({"success": True, "count": 0, "message": "No bank transaction emails found"})
