@@ -107,8 +107,10 @@ def callback():
         return redirect("/dashboard?syncing=1")
 
     except Exception as e:
+        import traceback
         print(f"Gmail callback error: {e}")
-        return redirect(f"/dashboard?error=gmail_failed")
+        print(traceback.format_exc())
+        return redirect(f"/dashboard?error=gmail_failed&msg={str(e)}")
 
 @gmail_bp.route("/gmail/sync")
 def sync():
