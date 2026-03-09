@@ -91,59 +91,73 @@ Return ONLY the JSON or null. No explanation."""
         print(f"Groq parse error: {e}")
         return None
 
-def stream_bank_emails(gmail_service, max_results: int = 25) -> Generator:
-    query = "subject:(debit OR credit OR credited OR debited OR transaction OR payment OR transferred OR withdrawn OR UPI OR NEFT OR IMPS OR alert OR successful)"
+def stream_bank_emails(gmail_service, max_results: int = 100) -> Generator:
+    query = 'from:(alerts OR noreply OR no-reply OR donotreply OR notification) (debit OR credit OR UPI OR NEFT OR IMPS OR transaction OR payment) newer_than:3m'
 
-    results = gmail_service.users().messages().list(
-        userId="me",
-        q=query,
-        maxResults=max_results
-    ).execute()
+    page_token = None
+    total_processed = 0
 
-    messages = results.get("messages", [])
-    print(f"Found {len(messages)} potential transaction emails")
+    while total_processed < max_results:
+        batch_size = min(25, max_results - total_processed)
+        
+        kwargs = {"userId": "me", "q": query, "maxResults": batch_size}
+        if page_token:
+            kwargs["pageToken"] = page_token
 
-    skip_subjects = ["otp", "one time password", "login", "password reset",
-                     "verify", "verification", "newsletter", "promo", "offer",
-                     "streak", "lesson", "play", "security alert", "data export"]
+        results = gmail_service.users().messages().list(**kwargs).execute()
+        messages = results.get("messages", [])
+        
+        if not messages:
+            break
 
-    for msg in messages:
-        try:
-            full_msg = gmail_service.users().messages().get(
-                userId="me",
-                id=msg["id"],
-                format="full"
-            ).execute()
+        print(f"Processing batch of {len(messages)} emails (total so far: {total_processed})")
 
-            headers = {
-                h["name"].lower(): h["value"]
-                for h in full_msg.get("payload", {}).get("headers", [])
-            }
+        skip_subjects = ["otp", "one time password", "login", "password reset",
+                         "verify", "verification", "newsletter", "promo", "offer",
+                         "streak", "lesson", "play", "security alert", "data export"]
 
-            sender = headers.get("from", "")
-            subject = headers.get("subject", "")
+        for msg in messages:
+            try:
+                full_msg = gmail_service.users().messages().get(
+                    userId="me", id=msg["id"], format="full"
+                ).execute()
 
-            if any(skip in subject.lower() for skip in skip_subjects):
+                headers = {
+                    h["name"].lower(): h["value"]
+                    for h in full_msg.get("payload", {}).get("headers", [])
+                }
+
+                sender = headers.get("from", "")
+                subject = headers.get("subject", "")
+
+                if any(skip in subject.lower() for skip in skip_subjects):
+                    del full_msg
+                    continue
+
+                body = decode_email_body(full_msg.get("payload", {}))
+                if not body or len(body.strip()) < 20:
+                    del full_msg
+                    continue
+
+                body_clean = clean_html(body)
+                parsed = parse_with_groq(subject, sender, body_clean)
+
+                if parsed:
+                    parsed["gmail_id"] = msg["id"]
+                    parsed["raw_text"] = body_clean[:150]
+                    parsed["source"] = "gmail"
+                    print(f"✓ {parsed.get('bank','?')} | {parsed.get('merchant','?')} | ₹{parsed.get('amount')} | {parsed.get('type')}")
+                    yield parsed
+
+                time.sleep(1)
+                del full_msg, body, body_clean
+
+            except Exception as e:
+                print(f"Error processing email {msg.get('id')}: {e}")
                 continue
 
-            body = decode_email_body(full_msg.get("payload", {}))
-            if not body or len(body.strip()) < 20:
-                continue
-
-            body_clean = clean_html(body)
-
-            parsed = parse_with_groq(subject, sender, body_clean)
-
-            if parsed:
-                parsed["gmail_id"] = msg["id"]
-                parsed["raw_text"] = body_clean[:300]
-                parsed["source"] = "gmail"
-                print(f"✓ {parsed.get('bank','?')} | {parsed.get('merchant','?')} | ₹{parsed.get('amount')} | {parsed.get('type')}")
-                yield parsed
-
-            time.sleep(1)
-            del full_msg, body, body_clean
-
-        except Exception as e:
-            print(f"Error processing email {msg.get('id')}: {e}")
-            continue
+        total_processed += len(messages)
+        page_token = results.get("nextPageToken")
+        
+        if not page_token:
+            break

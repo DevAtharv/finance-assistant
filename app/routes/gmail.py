@@ -146,7 +146,7 @@ def sync():
         saved = 0
         skipped = 0
 
-        for tx in stream_bank_emails(gmail_service, max_results=10):
+        for tx in stream_bank_emails(gmail_service, max_results=100):
             try:
                 gmail_id = tx.get("gmail_id", "")
                 if gmail_id in existing_ids:
