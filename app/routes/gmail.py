@@ -178,53 +178,6 @@ def sync():
         print(f"Gmail sync error: {e}")
         return jsonify({"error": str(e)}), 500
 
-    except Exception as e:
-        print(f"Gmail sync error: {e}")
-        return jsonify({"error": str(e)}), 500
-        # Categorize
-        transactions = categorize_transactions(transactions)
-
-        # Insert one by one to avoid memory crash
-        saved = 0
-        skipped = 0
-        for tx in transactions:
-            try:
-                gmail_id = tx.get("gmail_id", "")
-                if gmail_id and gmail_id in existing_ids:
-                    skipped += 1
-                    continue
-
-                raw_text = f"gmail_id:{gmail_id} | {tx.get('raw_text', '')}"
-
-                sb.table("transactions").insert({
-                    "user_id": session["user_id"],
-                    "date": tx.get("date"),
-                    "amount": tx.get("amount"),
-                    "type": tx.get("type"),
-                    "merchant": tx.get("merchant", "Unknown"),
-                    "merchant_clean": tx.get("merchant_clean", tx.get("merchant", "Unknown")),
-                    "category": tx.get("category", "Other"),
-                    "subcategory": tx.get("subcategory", "Uncategorized"),
-                    "payment_mode": tx.get("payment_mode", "Other"),
-                    "bank": tx.get("bank", "Unknown"),
-                    "raw_text": raw_text[:500],
-                }).execute()
-                saved += 1
-
-            except Exception as e:
-                print(f"Error saving transaction: {e}")
-                continue
-
-        return jsonify({
-            "success": True,
-            "count": saved,
-            "message": f"Imported {saved} new transactions from Gmail"
-        })
-
-    except Exception as e:
-        print(f"Gmail sync error: {e}")
-        return jsonify({"error": str(e)}), 500
-
 @gmail_bp.route("/gmail/status")
 def status():
     if not session.get("user_id"):
