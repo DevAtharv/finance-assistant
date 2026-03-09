@@ -2,12 +2,12 @@ import re
 import base64
 import json
 import os
+import requests
 from datetime import datetime
 from typing import Optional, Generator
 
-from google import genai
-
-client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
 def decode_email_body(payload: dict) -> str:
     body = ""
@@ -59,11 +59,15 @@ Rules:
 
 Return ONLY the JSON or null. No explanation."""
 
-        response = client.models.generate_content(
-        model="gemini-2.0-flash",
-            contents=prompt
-)
-        text = response.text.strip()
+        response = requests.post(
+            GEMINI_URL,
+            params={"key": GEMINI_API_KEY},
+            json={"contents": [{"parts": [{"text": prompt}]}]},
+            timeout=15
+        )
+
+        data = response.json()
+        text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
         text = text.replace("```json", "").replace("```", "").strip()
 
         if text.lower() == "null" or not text:
