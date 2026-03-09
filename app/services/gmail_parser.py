@@ -132,6 +132,7 @@ def stream_bank_emails(gmail_service, max_results: int = 25) -> Generator:
                 print(f"✓ {parsed.get('bank','?')} | {parsed.get('merchant','?')} | ₹{parsed.get('amount')} | {parsed.get('type')}")
                 yield parsed
 
+            time.sleep(2)  # 2 second delay between Gemini calls
             del full_msg, body, body_clean
 
         except Exception as e:
