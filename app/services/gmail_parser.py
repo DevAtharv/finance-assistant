@@ -7,7 +7,7 @@ import time
 from datetime import datetime
 from typing import Optional, Generator
 
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
 def decode_email_body(payload: dict) -> str:
     body = ""
@@ -29,7 +29,7 @@ def clean_html(text: str) -> str:
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
-def parse_with_openai(subject: str, sender: str, body: str) -> Optional[dict]:
+def parse_with_groq(subject: str, sender: str, body: str) -> Optional[dict]:
     try:
         prompt = f"""You are a financial transaction parser for Indian emails.
 
@@ -59,13 +59,13 @@ Rules:
 Return ONLY the JSON or null. No explanation."""
 
         response = requests.post(
-            "https://api.openai.com/v1/chat/completions",
+            "https://api.groq.com/openai/v1/chat/completions",
             headers={
-                "Authorization": f"Bearer {OPENAI_API_KEY}",
+                "Authorization": f"Bearer {GROQ_API_KEY}",
                 "Content-Type": "application/json"
             },
             json={
-                "model": "gpt-4o-mini",
+                "model": "llama-3.1-8b-instant",
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": 200,
                 "temperature": 0
@@ -74,7 +74,7 @@ Return ONLY the JSON or null. No explanation."""
         )
 
         data = response.json()
-        print(f"OpenAI raw response: {data}")
+        print(f"Groq response: {data}")
         text = data["choices"][0]["message"]["content"].strip()
 
         if text.lower() == "null" or not text:
@@ -88,7 +88,7 @@ Return ONLY the JSON or null. No explanation."""
         return result
 
     except Exception as e:
-        print(f"OpenAI parse error: {e}")
+        print(f"Groq parse error: {e}")
         return None
 
 def stream_bank_emails(gmail_service, max_results: int = 25) -> Generator:
@@ -132,7 +132,7 @@ def stream_bank_emails(gmail_service, max_results: int = 25) -> Generator:
 
             body_clean = clean_html(body)
 
-            parsed = parse_with_openai(subject, sender, body_clean)
+            parsed = parse_with_groq(subject, sender, body_clean)
 
             if parsed:
                 parsed["gmail_id"] = msg["id"]
@@ -141,7 +141,7 @@ def stream_bank_emails(gmail_service, max_results: int = 25) -> Generator:
                 print(f"✓ {parsed.get('bank','?')} | {parsed.get('merchant','?')} | ₹{parsed.get('amount')} | {parsed.get('type')}")
                 yield parsed
 
-            time.sleep(2)
+            time.sleep(1)
             del full_msg, body, body_clean
 
         except Exception as e:
