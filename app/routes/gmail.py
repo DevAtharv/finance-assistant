@@ -117,7 +117,7 @@ def sync():
 
     try:
         from app.services.gmail_parser import stream_bank_emails
-        from app.services.categorizer import categorize
+        from app.services.categorizer import rule_based_categorize_transactions
 
         sb = get_supabase()
 
@@ -149,7 +149,7 @@ def sync():
                     skipped += 1
                     continue
 
-                category = categorize(tx.get("merchant", ""), tx.get("raw_text", ""))
+                cat = rule_based_categorize_transactions(tx.get("merchant", "Unknown"))
 
                 sb.table("transactions").insert({
                     "user_id": session["user_id"],
@@ -158,8 +158,8 @@ def sync():
                     "type": tx.get("type"),
                     "merchant": tx.get("merchant", "Unknown"),
                     "merchant_clean": tx.get("merchant", "Unknown"),
-                    "category": category if isinstance(category, str) else category.get("category", "Other"),
-                    "subcategory": "Uncategorized",
+                    "category": cat.get("category", "Other"),
+                    "subcategory": cat.get("subcategory", "Uncategorized"),
                     "payment_mode": tx.get("payment_mode", "Other"),
                     "bank": tx.get("bank", "Unknown"),
                     "raw_text": f"gmail_id:{gmail_id} | {tx.get('raw_text', '')}",
@@ -173,6 +173,10 @@ def sync():
                 continue
 
         return jsonify({"success": True, "count": saved, "message": f"Imported {saved} new transactions"})
+
+    except Exception as e:
+        print(f"Gmail sync error: {e}")
+        return jsonify({"error": str(e)}), 500
 
     except Exception as e:
         print(f"Gmail sync error: {e}")
