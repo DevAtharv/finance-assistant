@@ -7,8 +7,8 @@ import time
 from datetime import datetime
 from typing import Optional, Generator
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent"
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
 def decode_email_body(payload: dict) -> str:
     body = ""
     if "parts" in payload:
@@ -29,7 +29,7 @@ def clean_html(text: str) -> str:
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
-def parse_with_gemini(subject: str, sender: str, body: str) -> Optional[dict]:
+def parse_with_openai(subject: str, sender: str, body: str) -> Optional[dict]:
     try:
         prompt = f"""You are a financial transaction parser for Indian emails.
 
@@ -53,26 +53,33 @@ Rules:
 - amount must be positive number
 - type is debit if money left, credit if money came in
 - merchant should be the person/shop name, NOT an email address
-- For FamApp/FamX emails extract the recipient name (e.g. "PARVAT SINGH")
 - date in YYYY-MM-DD format
 - If NOT a transaction email, return exactly: null
 
 Return ONLY the JSON or null. No explanation."""
 
         response = requests.post(
-            GEMINI_URL,
-            params={"key": GEMINI_API_KEY},
-            json={"contents": [{"parts": [{"text": prompt}]}]},
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENAI_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "gpt-4o-mini",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 200,
+                "temperature": 0
+            },
             timeout=15
         )
 
         data = response.json()
-        print(f"Gemini response: {data}")
-        text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        text = data["choices"][0]["message"]["content"].strip()
 
         if text.lower() == "null" or not text:
             return None
 
+        text = text.replace("```json", "").replace("```", "").strip()
         result = json.loads(text)
         if not result or not result.get("amount"):
             return None
@@ -80,7 +87,7 @@ Return ONLY the JSON or null. No explanation."""
         return result
 
     except Exception as e:
-        print(f"Gemini parse error: {e}")
+        print(f"OpenAI parse error: {e}")
         return None
 
 def stream_bank_emails(gmail_service, max_results: int = 25) -> Generator:
@@ -124,7 +131,7 @@ def stream_bank_emails(gmail_service, max_results: int = 25) -> Generator:
 
             body_clean = clean_html(body)
 
-            parsed = parse_with_gemini(subject, sender, body_clean)
+            parsed = parse_with_openai(subject, sender, body_clean)
 
             if parsed:
                 parsed["gmail_id"] = msg["id"]
@@ -133,7 +140,7 @@ def stream_bank_emails(gmail_service, max_results: int = 25) -> Generator:
                 print(f"✓ {parsed.get('bank','?')} | {parsed.get('merchant','?')} | ₹{parsed.get('amount')} | {parsed.get('type')}")
                 yield parsed
 
-            time.sleep(2)  # 2 second delay between Gemini calls
+            time.sleep(2)
             del full_msg, body, body_clean
 
         except Exception as e:
