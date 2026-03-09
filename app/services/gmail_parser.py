@@ -90,7 +90,8 @@ def parse_merchant(text: str) -> str:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             merchant = match.group(1).strip()
-            if len(merchant) > 2:
+            # Skip email addresses and very short results
+            if len(merchant) > 2 and "@gmail" not in merchant and "@yahoo" not in merchant:
                 return merchant[:40]
     return "Unknown"
 
