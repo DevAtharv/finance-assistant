@@ -67,8 +67,8 @@ Return ONLY the JSON or null. No explanation."""
         )
 
         data = response.json()
+        print(f"Gemini response: {data}")
         text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-        text = text.replace("```json", "").replace("```", "").strip()
 
         if text.lower() == "null" or not text:
             return None
