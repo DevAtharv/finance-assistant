@@ -74,6 +74,7 @@ Return ONLY the JSON or null. No explanation."""
         )
 
         data = response.json()
+        print(f"OpenAI raw response: {data}")
         text = data["choices"][0]["message"]["content"].strip()
 
         if text.lower() == "null" or not text:
