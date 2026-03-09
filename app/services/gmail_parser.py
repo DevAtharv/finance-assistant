@@ -7,8 +7,7 @@ from datetime import datetime
 from typing import Optional, Generator
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent"
 def decode_email_body(payload: dict) -> str:
     body = ""
     if "parts" in payload:
