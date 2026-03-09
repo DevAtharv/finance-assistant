@@ -5,10 +5,7 @@ gmail_bp = Blueprint("gmail", __name__)
 
 def get_supabase():
     from supabase import create_client
-    sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
-    access_token = session.get("access_token")
-    if access_token:
-        sb.postgrest.auth(access_token)
+    sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
     return sb
 
 def get_google_flow():
