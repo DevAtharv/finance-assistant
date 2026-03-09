@@ -3,6 +3,20 @@ import os
 
 auth_bp = Blueprint("auth", __name__)
 
+def refresh_session_if_needed():
+    """Call this at the start of any protected route."""
+    if not session.get("user_id"):
+        return
+    try:
+        from supabase import create_client
+        sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+        res = sb.auth.refresh_session(session.get("refresh_token"))
+        if res and res.session:
+            session["access_token"] = res.session.access_token
+            session["refresh_token"] = res.session.refresh_token
+    except Exception:
+        pass  # Silently fail — old token may still work
+
 @auth_bp.route("/")
 def landing():
     if session.get("user_id"):
@@ -21,6 +35,7 @@ def login():
             session["user_id"] = res.user.id
             session["email"] = res.user.email
             session["access_token"] = res.session.access_token
+            session["refresh_token"] = res.session.refresh_token
             return redirect(url_for("dashboard.index"))
         except Exception as e:
             flash(str(e), "error")

@@ -7,6 +7,8 @@ dashboard_bp = Blueprint("dashboard", __name__)
 
 def get_supabase():
     from supabase import create_client
+    from app.routes.auth import refresh_session_if_needed
+    refresh_session_if_needed()
     sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
     access_token = session.get("access_token")
     if access_token:
