@@ -5,10 +5,9 @@ import os
 from datetime import datetime
 from typing import Optional, Generator
 
-import google.generativeai as genai
+from google import genai
 
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-2.0-flash")
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 def decode_email_body(payload: dict) -> str:
     body = ""
@@ -60,7 +59,10 @@ Rules:
 
 Return ONLY the JSON or null. No explanation."""
 
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+        model="gemini-2.0-flash",
+            contents=prompt
+)
         text = response.text.strip()
         text = text.replace("```json", "").replace("```", "").strip()
 
