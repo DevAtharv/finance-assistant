@@ -1,8 +1,12 @@
 import os
 import json
-from openai import OpenAI
 
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+def get_openai_client():
+    from openai import OpenAI
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        return None
+    return OpenAI(api_key=api_key)
 
 MERCHANT_RULES = {
     "food": {
@@ -56,6 +60,9 @@ def rule_based_categorize_transactions(merchant: str) -> dict:
 
 def ai_categorize_transactions(merchant: str, amount: float, tx_type: str) -> dict:
     try:
+        client = get_openai_client()
+        if not client:
+            return rule_based_categorize_transactions(merchant)
         prompt = f"""Categorize this Indian financial transaction.
 Transaction:
 - Merchant: {merchant}
@@ -82,7 +89,6 @@ Return ONLY a JSON object:
     except Exception:
         return rule_based_categorize_transactions(merchant)
 
-# 👇 Renamed back to 'categorize' so your import works perfectly!
 def categorize(transactions: list) -> list:
     categorized = []
     for tx in transactions:
@@ -93,9 +99,5 @@ def categorize(transactions: list) -> list:
         tx["category"] = result.get("category", "Other")
         tx["subcategory"] = result.get("subcategory", "Uncategorized")
         tx["merchant_clean"] = result.get("merchant_clean", merchant)
-        
-        # ✅ FIXED: Appending to the list, not the function!
         categorized.append(tx)
-        
-    # ✅ FIXED: Returning the list, not the function!
     return categorized
