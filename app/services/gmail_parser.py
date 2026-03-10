@@ -1,163 +1,169 @@
-import re
-import base64
-import json
-import os
-import requests
-import time
+import re, base64, json, os, requests, time
 from datetime import datetime
 from typing import Optional, Generator
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-def decode_email_body(payload: dict) -> str:
-    body = ""
-    if "parts" in payload:
-        for part in payload["parts"]:
-            body += decode_email_body(part)
-    elif "body" in payload and "data" in payload["body"]:
-        try:
-            data = payload["body"]["data"]
-            body = base64.urlsafe_b64decode(data + "==").decode("utf-8", errors="ignore")
-        except Exception:
-            pass
-    return body
+def decode_email_body(payload: dict, max_chars: int = 2000) -> str:
+    text = ""
+    mime = payload.get("mimeType", "")
+    if mime == "text/plain":
+        data = payload.get("body", {}).get("data", "")
+        if data:
+            text = base64.urlsafe_b64decode(data + "==").decode("utf-8", errors="ignore")
+    elif mime.startswith("multipart/"):
+        for part in payload.get("parts", []):
+            text += decode_email_body(part, max_chars=max_chars - len(text))
+            if len(text) >= max_chars:
+                break
+    return text[:max_chars]
 
 def clean_html(text: str) -> str:
-    text = re.sub(r'<[^>]+>', ' ', text)
-    text = re.sub(r'&nbsp;', ' ', text)
-    text = re.sub(r'&amp;', '&', text)
-    text = re.sub(r'\s+', ' ', text)
-    return text.strip()
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"&nbsp;", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
 
 def parse_with_groq(subject: str, sender: str, body: str) -> Optional[dict]:
-    try:
-        prompt = f"""You are a financial transaction parser for Indian emails.
+    if not GROQ_API_KEY:
+        return None
 
-Analyze this email and extract transaction details if it contains a payment/transaction.
+    prompt = f"""Extract transaction details from this bank/payment email. 
+Return ONLY valid JSON with these fields: amount (number), type ("debit" or "credit"), merchant (string), date (YYYY-MM-DD), bank (string), payment_mode (string).
+If this is NOT a transaction email, return: {{"not_transaction": true}}
 
 Subject: {subject}
 From: {sender}
-Body: {body[:1000]}
+Body: {body[:800]}"""
 
-If this is a transaction email (payment, debit, credit, UPI, wallet payment etc), return ONLY this JSON:
-{{
-  "amount": <number>,
-  "type": "debit" or "credit",
-  "merchant": "<who was paid or who paid - use real name not email>",
-  "date": "<YYYY-MM-DD>",
-  "bank": "<bank or wallet name>",
-  "payment_mode": "UPI" or "NEFT" or "IMPS" or "Wallet" or "Other"
-}}
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            resp = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {GROQ_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "llama-3.1-8b-instant",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0,
+                    "max_tokens": 150,
+                },
+                timeout=20,
+            )
+            data = resp.json()
 
-Rules:
-- amount must be positive number
-- type is debit if money left, credit if money came in
-- merchant should be the person/shop name, NOT an email address
-- date in YYYY-MM-DD format
-- If NOT a transaction email, return exactly: null
+            # Rate limit — extract exact wait time and sleep
+            if "error" in data:
+                err_msg = data["error"].get("message", "")
+                print(f"Groq rate limit: {err_msg[:100]}")
+                wait_ms = re.search(r"try again in ([0-9.]+)ms", err_msg)
+                wait_s  = re.search(r"try again in ([0-9.]+)s", err_msg)
+                if wait_ms:
+                    wait = float(wait_ms.group(1)) / 1000 + 0.3
+                elif wait_s:
+                    wait = float(wait_s.group(1)) + 0.5
+                else:
+                    wait = 5.0
+                print(f"Sleeping {wait:.1f}s...")
+                time.sleep(wait)
+                continue
 
-Return ONLY the JSON or null. No explanation."""
+            content = data["choices"][0]["message"]["content"].strip()
+            content = re.sub(r"^```[a-z]*\n?", "", content)
+            content = re.sub(r"\n?```$", "", content)
 
-        response = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {GROQ_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "llama-3.1-8b-instant",
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 200,
-                "temperature": 0
-            },
-            timeout=15
-        )
+            parsed = json.loads(content)
+            if parsed.get("not_transaction"):
+                return None
+            return parsed
 
-        data = response.json()
-        print(f"Groq response: {data}")
-        text = data["choices"][0]["message"]["content"].strip()
-
-        if text.lower() == "null" or not text:
+        except (KeyError, json.JSONDecodeError) as e:
+            print(f"Groq parse error: {e}")
+            return None
+        except Exception as e:
+            print(f"Groq request error: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(3)
             return None
 
-        text = text.replace("```json", "").replace("```", "").strip()
-        result = json.loads(text)
-        if not result or not result.get("amount"):
-            return None
+    print("Groq: max retries reached, skipping")
+    return None
 
-        return result
 
-    except Exception as e:
-        print(f"Groq parse error: {e}")
-        return None
+SKIP_SUBJECTS = [
+    "otp", "one time password", "verify", "verification",
+    "password reset", "login", "sign in", "unsubscribe",
+    "newsletter", "offer", "sale", "discount", "cashback offer",
+    "welcome", "thank you for registering"
+]
 
-def stream_bank_emails(gmail_service, max_results: int = 100) -> Generator:
-    query = 'from:(alerts OR noreply OR no-reply OR donotreply OR notification) (debit OR credit OR UPI OR NEFT OR IMPS OR transaction OR payment) newer_than:3m'
+def stream_bank_emails(gmail_service, max_results: int = 50) -> Generator:
+    query = (
+        "from:(alerts OR noreply OR no-reply OR donotreply OR notification OR support) "
+        "(debit OR credit OR UPI OR NEFT OR IMPS OR transaction OR payment OR debited OR credited) "
+        "newer_than:3m"
+    )
 
+    fetched = 0
     page_token = None
-    total_processed = 0
 
-    while total_processed < max_results:
-        batch_size = min(25, max_results - total_processed)
-        
-        kwargs = {"userId": "me", "q": query, "maxResults": batch_size}
+    while fetched < max_results:
+        batch = min(10, max_results - fetched)
+        kwargs = {"userId": "me", "q": query, "maxResults": batch}
         if page_token:
             kwargs["pageToken"] = page_token
 
-        results = gmail_service.users().messages().list(**kwargs).execute()
-        messages = results.get("messages", [])
-        
+        try:
+            result = gmail_service.users().messages().list(**kwargs).execute()
+        except Exception as e:
+            print(f"Gmail list error: {e}")
+            break
+
+        messages = result.get("messages", [])
         if not messages:
             break
 
-        print(f"Processing batch of {len(messages)} emails (total so far: {total_processed})")
-
-        skip_subjects = ["otp", "one time password", "login", "password reset",
-                         "verify", "verification", "newsletter", "promo", "offer",
-                         "streak", "lesson", "play", "security alert", "data export"]
+        page_token = result.get("nextPageToken")
 
         for msg in messages:
+            if fetched >= max_results:
+                break
+            fetched += 1
+
             try:
-                full_msg = gmail_service.users().messages().get(
+                full = gmail_service.users().messages().get(
                     userId="me", id=msg["id"], format="full"
                 ).execute()
 
-                headers = {
-                    h["name"].lower(): h["value"]
-                    for h in full_msg.get("payload", {}).get("headers", [])
-                }
-
-                sender = headers.get("from", "")
+                headers = {h["name"].lower(): h["value"] for h in full.get("payload", {}).get("headers", [])}
                 subject = headers.get("subject", "")
+                sender  = headers.get("from", "")
 
-                if any(skip in subject.lower() for skip in skip_subjects):
-                    del full_msg
+                subj_lower = subject.lower()
+                if any(kw in subj_lower for kw in SKIP_SUBJECTS):
                     continue
 
-                body = decode_email_body(full_msg.get("payload", {}))
-                if not body or len(body.strip()) < 20:
-                    del full_msg
+                body = decode_email_body(full.get("payload", {}))
+                body = clean_html(body)
+
+                tx = parse_with_groq(subject, sender, body)
+                if not tx:
                     continue
 
-                body_clean = clean_html(body)
-                parsed = parse_with_groq(subject, sender, body_clean)
+                tx["gmail_id"] = msg["id"]
+                tx["raw_text"] = f"{subject[:80]} | {sender[:50]}"
 
-                if parsed:
-                    parsed["gmail_id"] = msg["id"]
-                    parsed["raw_text"] = body_clean[:150]
-                    parsed["source"] = "gmail"
-                    print(f"✓ {parsed.get('bank','?')} | {parsed.get('merchant','?')} | ₹{parsed.get('amount')} | {parsed.get('type')}")
-                    yield parsed
-
-                time.sleep(1)
-                del full_msg, body, body_clean
+                print(f"✓ {tx.get('bank')} | {tx.get('merchant')} | ₹{tx.get('amount')} | {tx.get('type')}")
+                yield tx
 
             except Exception as e:
-                print(f"Error processing email {msg.get('id')}: {e}")
+                print(f"Error processing email {msg['id']}: {e}")
                 continue
 
-        total_processed += len(messages)
-        page_token = results.get("nextPageToken")
-        
+            time.sleep(0.5)
+
         if not page_token:
             break
