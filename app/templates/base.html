@@ -1,214 +1,185 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}GetSync{% endblock %}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --black: #0A0A0A;
-      --black2: #111111;
-      --black3: #1A1A1A;
-      --black4: #242424;
-      --white: #FAFAFA;
-      --white2: #F0F0F0;
-      --muted: #888888;
-      --muted2: #555555;
-      --accent: #00FF94;
-      --accent-dim: rgba(0,255,148,0.08);
-      --accent-glow: rgba(0,255,148,0.15);
-      --red: #FF4D6D;
-      --border: rgba(255,255,255,0.07);
-      --sidebar-w: 80px;
+      --bg: #F7F8FA;
+      --bg2: #FFFFFF;
+      --bg3: #F0F2F5;
+      --text: #0D1117;
+      --text2: #3D4451;
+      --muted: #8A919E;
+      --border: #E4E7EC;
+      --accent: #10B981;
+      --accent-light: #D1FAE5;
+      --accent-dark: #059669;
+      --red: #EF4444;
+      --red-light: #FEE2E2;
+      --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.04);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08);
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+    [data-theme="dark"] {
+      --bg: #0D1117;
+      --bg2: #161B22;
+      --bg3: #1C2128;
+      --text: #E6EDF3;
+      --text2: #8D96A0;
+      --muted: #6E7681;
+      --border: #30363D;
+      --accent: #10B981;
+      --accent-light: rgba(16,185,129,0.15);
+      --accent-dark: #34D399;
+      --red: #F87171;
+      --red-light: rgba(239,68,68,0.15);
+      --shadow: 0 1px 3px rgba(0,0,0,0.3);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.4);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.5);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
     body {
-      background: var(--black);
-      color: var(--white);
-      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', sans-serif;
       min-height: 100vh;
-      display: flex;
+      transition: background 0.2s, color 0.2s;
     }
-    .sidebar {
-      width: var(--sidebar-w);
-      background: var(--black2);
-      border-right: 1px solid var(--border);
-      display: flex; flex-direction: column;
-      align-items: center;
-      padding: 1.5rem 0 2rem;
-      position: fixed; left: 0; top: 0; bottom: 0;
-      z-index: 100;
-    }
-    .sidebar-logo {
-      width: 46px; height: 46px;
-      background: var(--white);
-      border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      margin-bottom: 2.5rem;
-      text-decoration: none; flex-shrink: 0;
-    }
-    .sidebar-logo span {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800; font-size: 0.95rem;
-      color: var(--black); letter-spacing: -0.05em;
-    }
-    .sidebar-nav {
-      display: flex; flex-direction: column;
-      align-items: center; gap: 0.4rem; flex: 1;
-    }
-    .sidebar-link {
-      width: 46px; height: 46px; border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      color: var(--muted); text-decoration: none;
-      transition: all 0.15s; position: relative;
-    }
-    .sidebar-link svg { width: 19px; height: 19px; }
-    .sidebar-link:hover { background: var(--black3); color: var(--white); }
-    .sidebar-link.active { background: var(--black3); color: var(--white); }
-    .sidebar-link.active::after {
-      content: ''; position: absolute;
-      left: 0; top: 50%; transform: translateY(-50%);
-      width: 2px; height: 18px;
-      background: var(--accent); border-radius: 0 2px 2px 0;
-    }
-    .sidebar-bottom {
-      display: flex; flex-direction: column;
-      align-items: center; gap: 0.5rem;
-    }
-    .sidebar-add {
-      width: 46px; height: 46px;
-      background: var(--accent); border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      color: var(--black); text-decoration: none;
-      font-size: 1.4rem; font-weight: 300;
-      transition: all 0.15s;
-      box-shadow: 0 0 24px var(--accent-glow);
-    }
-    .sidebar-add:hover { transform: scale(1.05); }
-    .main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
-    .topbar {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 1rem 2rem;
+    .navbar {
+      height: 60px;
+      background: var(--bg2);
       border-bottom: 1px solid var(--border);
-      background: rgba(10,10,10,0.92);
-      backdrop-filter: blur(20px);
-      position: sticky; top: 0; z-index: 50;
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center;
+      padding: 0 2rem; gap: 1.5rem;
+      box-shadow: var(--shadow);
+      transition: background 0.2s, border-color 0.2s;
     }
-    .topbar-left { display: flex; align-items: center; gap: 0.8rem; }
-    .topbar-brand { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.05rem; letter-spacing: -0.03em; }
-    .topbar-brand span { color: var(--accent); }
-    .topbar-divider { width: 1px; height: 18px; background: var(--border); }
-    .topbar-page { font-size: 0.8rem; color: var(--muted); }
-    .topbar-right { display: flex; gap: 0.6rem; align-items: center; }
-    .topbar-avatar {
-      width: 32px; height: 32px; border-radius: 8px;
-      background: var(--black4); border: 1px solid var(--border);
+    .nav-brand {
+      font-family: 'Clash Display', sans-serif;
+      font-size: 1.2rem; font-weight: 700;
+      color: var(--text); text-decoration: none; flex-shrink: 0;
+    }
+    .nav-brand span { color: var(--accent); }
+    .nav-links { display: flex; gap: 0.15rem; }
+    .nav-link {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.4rem 0.85rem; border-radius: var(--radius-sm);
+      color: var(--muted); text-decoration: none;
+      font-size: 0.85rem; font-weight: 500; transition: all 0.15s;
+    }
+    .nav-link svg { width: 15px; height: 15px; }
+    .nav-link:hover { background: var(--bg3); color: var(--text); }
+    .nav-link.active { background: var(--bg3); color: var(--text); font-weight: 600; }
+    .nav-right { display: flex; align-items: center; gap: 0.65rem; margin-left: auto; }
+    .theme-toggle {
+      width: 34px; height: 34px; border-radius: var(--radius-sm);
+      background: var(--bg3); border: 1px solid var(--border);
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.75rem; font-weight: 700; color: var(--accent);
-      font-family: 'Syne', sans-serif;
+      cursor: pointer; transition: all 0.15s; color: var(--muted);
     }
-    .topbar-user { font-size: 0.8rem; color: var(--muted); max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .theme-toggle:hover { color: var(--text); border-color: var(--accent); }
+    .theme-toggle svg { width: 15px; height: 15px; }
+    .sun-icon { display: none; }
+    [data-theme="dark"] .sun-icon { display: block; }
+    [data-theme="dark"] .moon-icon { display: none; }
+    .nav-avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--accent-light);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 700; color: var(--accent);
+    }
+    .nav-user { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
     .btn {
-      padding: 0.48rem 1.1rem; border-radius: 8px;
-      font-family: 'Inter', sans-serif;
-      font-size: 0.8rem; font-weight: 500;
-      cursor: pointer; border: none; transition: all 0.15s;
-      text-decoration: none; display: inline-flex;
-      align-items: center; gap: 0.35rem; white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.45rem 1rem; border-radius: var(--radius-sm);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.83rem; font-weight: 600;
+      cursor: pointer; border: none; text-decoration: none;
+      transition: all 0.15s; white-space: nowrap;
     }
-    .btn-accent { background: var(--accent); color: var(--black); font-weight: 600; box-shadow: 0 0 20px var(--accent-glow); }
-    .btn-accent:hover { opacity: 0.9; transform: translateY(-1px); }
-    .btn-outline { background: transparent; color: var(--white); border: 1px solid var(--border); }
-    .btn-outline:hover { border-color: var(--muted2); background: var(--black3); }
-    .btn-ghost { background: var(--black3); color: var(--muted); border: 1px solid var(--border); }
-    .btn-ghost:hover { color: var(--white); }
-    .icon-btn {
-      width: 32px; height: 32px; background: var(--black3);
-      border: 1px solid var(--border); border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      color: var(--muted); cursor: pointer; transition: all 0.15s;
-      text-decoration: none;
-    }
-    .icon-btn:hover { border-color: var(--muted2); color: var(--white); }
-    .card { background: var(--black2); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; }
+    .btn-primary { background: var(--text); color: var(--bg2); }
+    .btn-primary:hover { opacity: 0.82; }
+    .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--bg3); color: var(--text); }
+    .btn-accent { background: var(--accent); color: white; }
+    .btn-accent:hover { background: var(--accent-dark); }
+    .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.78rem; }
+    .btn-lg { padding: 0.75rem 1.75rem; font-size: 0.95rem; border-radius: var(--radius); }
     .flash-wrap { padding: 1rem 2rem 0; }
-    .flash { padding: 0.65rem 1rem; border-radius: 8px; margin-bottom: 0.4rem; font-size: 0.82rem; }
-    .flash.error { background: rgba(255,77,109,0.07); border: 1px solid rgba(255,77,109,0.2); color: var(--red); }
-    .flash.success { background: var(--accent-dim); border: 1px solid rgba(0,255,148,0.15); color: var(--accent); }
-    .heading { font-family: 'Syne', sans-serif; font-weight: 800; letter-spacing: -0.03em; }
-    .mono { font-family: 'JetBrains Mono', monospace; }
+    .flash { padding: 0.6rem 1rem; border-radius: var(--radius-sm); margin-bottom: 0.4rem; font-size: 0.83rem; font-weight: 500; }
+    .flash.error { background: var(--red-light); color: var(--red); }
+    .flash.success { background: var(--accent-light); color: var(--accent-dark); }
+    .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); }
   </style>
   {% block head %}{% endblock %}
 </head>
 <body>
-  <aside class="sidebar">
-    <a href="/" class="sidebar-logo"><span>GS</span></a>
-    <nav class="sidebar-nav">
+  <nav class="navbar">
+    <a href="/" class="nav-brand">Get<span>Sync</span></a>
     {% if session.user_id %}
-      <a href="/dashboard" title="Dashboard" class="sidebar-link {% if request.path == '/dashboard' %}active{% endif %}">
-        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    <div class="nav-links">
+      <a href="/dashboard" class="nav-link {% if request.path == '/dashboard' %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
       </a>
-      <a href="/ingest" title="Add Transactions" class="sidebar-link {% if request.path == '/ingest' %}active{% endif %}">
-        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <a href="/ingest" class="nav-link {% if request.path == '/ingest' %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Data
       </a>
-      <a href="/report" title="Reports" class="sidebar-link">
-        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      <a href="/report" class="nav-link">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Reports
       </a>
-    {% endif %}
-    </nav>
-    <div class="sidebar-bottom">
-    {% if session.user_id %}
-      <a href="/gmail/connect" title="Gmail Sync" class="sidebar-link">
-        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-      </a>
-      <a href="/logout" title="Logout" class="sidebar-link">
-        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      </a>
-      <a href="/ingest" class="sidebar-add" title="Add">+</a>
-    {% else %}
-      <a href="/login" class="sidebar-link" title="Login">
-        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      </a>
-    {% endif %}
     </div>
-  </aside>
-
-  <div class="main">
-    <header class="topbar">
-      <div class="topbar-left">
-        <div class="topbar-brand">Get<span>Sync</span></div>
-        <div class="topbar-divider"></div>
-        <span class="topbar-page">{% block page_title %}Home{% endblock %}</span>
-      </div>
-      <div class="topbar-right">
-        {% if session.user_id %}
-          <span class="topbar-user">{{ session.email.split('@')[0] if session.email else 'User' }}</span>
-          <div class="topbar-avatar">{{ session.email[0].upper() if session.email else 'U' }}</div>
-          <a href="/ingest" class="icon-btn" title="Add">
-            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          </a>
-          <a href="/logout" class="icon-btn" title="Logout">
-            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          </a>
-        {% else %}
-          <a href="/login" class="btn btn-ghost">Sign in</a>
-          <a href="/register" class="btn btn-accent">Get Started</a>
-        {% endif %}
-      </div>
-    </header>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="flash-wrap">
-          {% for cat, msg in messages %}
-            <div class="flash {{ cat }}">{{ msg }}</div>
-          {% endfor %}
-        </div>
+    {% endif %}
+    <div class="nav-right">
+      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+        <svg class="sun-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg class="moon-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
+      {% if session.user_id %}
+        <span class="nav-user">{{ session.email.split('@')[0] if session.email else 'User' }}</span>
+        <div class="nav-avatar">{{ session.email[0].upper() if session.email else 'U' }}</div>
+        <a href="/logout" class="btn btn-ghost btn-sm">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign Out
+        </a>
+      {% else %}
+        <a href="/login" class="btn btn-ghost btn-sm">Sign in</a>
+        <a href="/register" class="btn btn-primary btn-sm">Get Started →</a>
       {% endif %}
-    {% endwith %}
-
-    {% block content %}{% endblock %}
-  </div>
+    </div>
+  </nav>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-wrap">
+        {% for cat, msg in messages %}
+          <div class="flash {{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+  <script>
+    function toggleTheme() {
+      const html = document.documentElement;
+      const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('gs-theme', next);
+    }
+    (function() {
+      const saved = localStorage.getItem('gs-theme');
+      if (saved) document.documentElement.setAttribute('data-theme', saved);
+      else if (window.matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.setAttribute('data-theme', 'dark');
+    })();
+  </script>
 </body>
 </html>

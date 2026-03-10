@@ -1,472 +1,396 @@
 {% extends "base.html" %}
 {% block title %}Dashboard — GetSync{% endblock %}
-{% block page_title %}Dashboard{% endblock %}
 
 {% block head %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-  .dashboard { padding: 2rem; flex: 1; }
-
-  /* Top row */
-  .dash-toprow {
-    display: flex; align-items: flex-start;
-    justify-content: space-between; flex-wrap: wrap;
-    gap: 1rem; margin-bottom: 2rem;
-  }
-  .dash-toprow h1 {
-    font-family: 'Syne', sans-serif;
-    font-size: 1.8rem; font-weight: 800;
-    letter-spacing: -0.04em; line-height: 1;
-  }
-  .dash-toprow .sub { color: var(--muted); font-size: 0.82rem; margin-top: 0.3rem; }
-  .dash-controls { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
-
-  .month-input {
-    background: var(--black2); border: 1px solid var(--border);
-    color: var(--white); padding: 0.45rem 0.9rem;
-    border-radius: 8px; font-family: 'Inter', sans-serif;
-    font-size: 0.8rem; outline: none; cursor: pointer;
+  .dash {
+    max-width: 1200px; margin: 0 auto;
+    padding: 1.75rem 2rem 3rem;
+    display: flex; flex-direction: column; gap: 1.25rem;
   }
 
-  /* Gmail bar */
-  .gmail-bar {
-    background: var(--black2); border: 1px solid var(--border);
-    border-radius: 12px; padding: 0.9rem 1.2rem;
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;
+  /* Gmail connect banner */
+  .gmail-banner {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1rem 1.5rem;
+    display: flex; align-items: center; gap: 1rem;
+    box-shadow: var(--shadow);
   }
-  .gmail-bar-left { display: flex; align-items: center; gap: 0.75rem; }
-  .gmail-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--muted2); flex-shrink: 0;
+  .gmail-banner-icon {
+    width: 38px; height: 38px; border-radius: var(--radius-sm);
+    background: var(--bg3); display: flex; align-items: center;
+    justify-content: center; flex-shrink: 0;
   }
-  .gmail-dot.connected { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
-  .gmail-bar-text { font-size: 0.82rem; }
-  .gmail-bar-text .title { font-weight: 500; margin-bottom: 0.1rem; }
-  .gmail-bar-text .sub { color: var(--muted); font-size: 0.75rem; }
-  .gmail-bar-right { display: flex; gap: 0.5rem; align-items: center; }
-  .sync-badge {
-    font-size: 0.72rem; padding: 0.2rem 0.6rem;
-    border-radius: 999px; border: 1px solid var(--border);
-    background: var(--black3); color: var(--muted);
-  }
-  .sync-badge.ok { border-color: rgba(0,255,148,0.2); color: var(--accent); background: var(--accent-dim); }
-  .sync-badge.err { border-color: rgba(255,77,109,0.2); color: var(--red); }
-  .btn-connect {
-    padding: 0.4rem 1rem; background: var(--black3);
-    border: 1px solid var(--border); border-radius: 8px;
-    color: var(--white); font-size: 0.78rem; font-weight: 500;
-    font-family: 'Inter', sans-serif; cursor: pointer;
-    text-decoration: none; transition: all 0.15s;
-  }
-  .btn-connect:hover { border-color: var(--accent); color: var(--accent); }
-  .btn-sync-now {
-    padding: 0.4rem 1rem; background: var(--accent-dim);
-    border: 1px solid rgba(0,255,148,0.2); border-radius: 8px;
-    color: var(--accent); font-size: 0.78rem; font-weight: 600;
-    font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s;
-  }
-  .btn-sync-now:hover { background: var(--accent); color: var(--black); }
+  .gmail-banner-icon svg { width: 18px; height: 18px; color: var(--muted); }
+  .gmail-banner-text { flex: 1; }
+  .gmail-banner-text strong { font-size: 0.9rem; color: var(--text); }
+  .gmail-banner-text p { font-size: 0.8rem; color: var(--muted); margin-top: 0.15rem; }
+  .gmail-synced { color: var(--accent); font-size: 0.8rem; font-weight: 600;
+    display: flex; align-items: center; gap: 0.3rem; }
+  .gmail-synced::before { content: ''; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent); display: inline-block; }
 
-  /* Stat cards */
-  .stats-grid {
+  /* STAT CARDS */
+  .stat-row {
     display: grid; grid-template-columns: repeat(4, 1fr);
-    gap: 1px; background: var(--border);
-    border: 1px solid var(--border); border-radius: 16px;
-    overflow: hidden; margin-bottom: 1.5rem;
+    gap: 1rem;
   }
-  @media (max-width: 900px) { .stats-grid { grid-template-columns: 1fr 1fr; } }
-  .stat-cell {
-    background: var(--black2); padding: 1.5rem;
-    transition: background 0.15s;
-  }
-  .stat-cell:hover { background: var(--black3); }
-  .stat-cell .lbl {
-    font-size: 0.72rem; color: var(--muted);
-    text-transform: uppercase; letter-spacing: 0.08em;
-    margin-bottom: 0.75rem; display: flex;
-    align-items: center; gap: 0.4rem;
-  }
-  .stat-cell .val {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 1.7rem; font-weight: 500; line-height: 1;
-    margin-bottom: 0.4rem;
-  }
-  .stat-cell .val.green { color: var(--accent); }
-  .stat-cell .val.red { color: var(--red); }
-  .stat-cell .hint { font-size: 0.72rem; color: var(--muted2); }
+  @media (max-width: 900px) { .stat-row { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 500px) { .stat-row { grid-template-columns: 1fr; } }
 
-  /* Main grid */
-  .main-grid {
-    display: grid; grid-template-columns: 1fr 320px;
-    gap: 1.5rem; margin-bottom: 1.5rem;
+  .stat-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.25rem 1.5rem;
+    box-shadow: var(--shadow); display: flex;
+    flex-direction: column; gap: 0.2rem;
   }
-  @media (max-width: 1100px) { .main-grid { grid-template-columns: 1fr; } }
+  .stat-card-top {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+  .stat-card-label { font-size: 0.78rem; color: var(--muted); font-weight: 500; }
+  .stat-card-icon { color: var(--muted); }
+  .stat-card-icon svg { width: 16px; height: 16px; }
+  .stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.6rem; font-weight: 600; color: var(--text);
+    letter-spacing: -0.02em;
+  }
+  .stat-trend {
+    font-size: 0.75rem; font-weight: 600; margin-top: 0.25rem;
+    display: flex; align-items: center; gap: 0.25rem;
+  }
+  .stat-trend.up { color: var(--accent); }
+  .stat-trend.down { color: var(--red); }
+  .stat-trend svg { width: 12px; height: 12px; }
+
+  /* MAIN GRID */
+  .main-grid {
+    display: grid; grid-template-columns: 1fr 340px;
+    gap: 1.25rem;
+  }
+  @media (max-width: 1000px) { .main-grid { grid-template-columns: 1fr; } }
 
   .panel {
-    background: var(--black2); border: 1px solid var(--border);
-    border-radius: 16px; padding: 1.5rem;
-  }
-  .panel-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 1.5rem;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.5rem;
+    box-shadow: var(--shadow);
   }
   .panel-title {
-    font-family: 'Syne', sans-serif; font-size: 0.88rem;
-    font-weight: 700; letter-spacing: -0.02em;
+    font-family: 'Clash Display', sans-serif;
+    font-size: 0.95rem; font-weight: 600;
+    color: var(--text); margin-bottom: 1.25rem;
   }
-  .panel-action { font-size: 0.75rem; color: var(--muted); text-decoration: none; transition: color 0.15s; }
-  .panel-action:hover { color: var(--accent); }
 
-  canvas { max-height: 200px; }
+  /* Chart */
+  .chart-wrap { position: relative; height: 240px; }
+  .chart-legend {
+    display: flex; gap: 1rem; margin-bottom: 1rem;
+  }
+  .legend-item { display: flex; align-items: center; gap: 0.35rem; font-size: 0.78rem; color: var(--muted); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+
+  /* Category list */
+  .cat-list { display: flex; flex-direction: column; gap: 0.85rem; }
+  .cat-item {}
+  .cat-item-top {
+    display: flex; justify-content: space-between;
+    margin-bottom: 0.4rem;
+  }
+  .cat-name { font-size: 0.83rem; color: var(--text); font-weight: 500; }
+  .cat-amt { font-size: 0.83rem; color: var(--text2); font-weight: 600;
+    font-family: 'JetBrains Mono', monospace; }
+  .cat-bar { height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+  .cat-bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+
+  /* BOTTOM GRID */
+  .bottom-grid {
+    display: grid; grid-template-columns: 1fr 340px;
+    gap: 1.25rem;
+  }
+  @media (max-width: 1000px) { .bottom-grid { grid-template-columns: 1fr; } }
 
   /* Transactions */
+  .txn-list { display: flex; flex-direction: column; }
   .txn-item {
-    display: flex; align-items: center; gap: 0.8rem;
-    padding: 0.65rem 0;
-    border-bottom: 1px solid var(--border2);
-    transition: background 0.15s;
+    display: flex; align-items: center; gap: 0.85rem;
+    padding: 0.85rem 0; border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
   }
   .txn-item:last-child { border-bottom: none; }
-  .txn-item:hover { margin: 0 -0.5rem; padding-left: 0.5rem; padding-right: 0.5rem; background: var(--black3); border-radius: 8px; border-bottom-color: transparent; }
-  .txn-bullet {
-    width: 8px; height: 8px; border-radius: 50%;
-    flex-shrink: 0;
+  .txn-item:hover { background: var(--bg3); margin: 0 -1.5rem; padding-left: 1.5rem; padding-right: 1.5rem; border-radius: 8px; }
+  .txn-icon {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; flex-shrink: 0; font-weight: 600;
   }
+  .txn-icon.debit { background: var(--red-light); color: var(--red); }
+  .txn-icon.credit { background: var(--accent-light); color: var(--accent-dark); }
   .txn-info { flex: 1; min-width: 0; }
-  .txn-name { font-size: 0.82rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .txn-meta { font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem; }
-  .txn-amt { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; font-weight: 500; }
-  .txn-amt.debit { color: var(--red); }
+  .txn-name { font-size: 0.875rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .txn-meta { font-size: 0.75rem; color: var(--muted); margin-top: 0.1rem; }
+  .txn-amt {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.875rem; font-weight: 600; flex-shrink: 0;
+  }
+  .txn-amt.debit { color: var(--text2); }
   .txn-amt.credit { color: var(--accent); }
-
-  /* Bottom grid */
-  .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-  @media (max-width: 900px) { .bottom-grid { grid-template-columns: 1fr; } }
-
-  .donut-wrap { position: relative; width: 140px; height: 140px; margin: 0 auto 1.5rem; }
-  .donut-center {
-    position: absolute; top: 50%; left: 50%;
-    transform: translate(-50%, -50%); text-align: center;
+  .no-data {
+    text-align: center; padding: 3rem 1rem;
+    color: var(--muted); font-size: 0.85rem;
   }
-  .donut-center .big { font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; font-weight: 500; }
-  .donut-center .sm { font-size: 0.68rem; color: var(--muted); }
+  .no-data-icon { font-size: 2rem; margin-bottom: 0.5rem; }
 
-  .legend-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0.4rem 0; font-size: 0.78rem;
-    border-bottom: 1px solid var(--border2);
-  }
-  .legend-row:last-child { border-bottom: none; }
-  .legend-left { display: flex; align-items: center; gap: 0.5rem; }
-  .legend-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-  .legend-pct { color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; }
-
-  .merchant-row {
+  /* Top merchants */
+  .merchant-list { display: flex; flex-direction: column; gap: 0.1rem; }
+  .merchant-item {
     display: flex; align-items: center; gap: 0.75rem;
-    padding: 0.5rem 0.75rem; border-radius: 8px;
-    background: var(--black3); margin-bottom: 0.4rem;
-    font-size: 0.8rem;
+    padding: 0.65rem 0; border-bottom: 1px solid var(--border);
   }
-  .merchant-n { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: var(--muted2); width: 16px; }
-  .merchant-name { flex: 1; font-weight: 500; }
-  .merchant-amt { font-family: 'JetBrains Mono', monospace; color: var(--accent); font-size: 0.78rem; }
+  .merchant-item:last-child { border-bottom: none; }
+  .merchant-rank {
+    width: 22px; font-size: 0.75rem; color: var(--muted);
+    font-weight: 600; text-align: center; flex-shrink: 0;
+  }
+  .merchant-name { flex: 1; font-size: 0.85rem; font-weight: 600; color: var(--text); }
+  .merchant-count { font-size: 0.73rem; color: var(--muted); }
+  .merchant-amt { font-family: 'JetBrains Mono', monospace; font-size: 0.83rem; color: var(--text2); font-weight: 600; }
 
-  .alert-item {
-    padding: 0.65rem 0.9rem; background: var(--black3);
-    border-radius: 8px; margin-bottom: 0.4rem;
-    border-left: 2px solid #F0A500;
-    font-size: 0.78rem; color: var(--muted);
-    line-height: 1.5;
+  /* Sync status bar */
+  .sync-bar {
+    background: var(--accent-light); border: 1px solid var(--accent);
+    border-radius: var(--radius); padding: 0.85rem 1.25rem;
+    display: flex; align-items: center; gap: 0.75rem;
+    font-size: 0.83rem; color: var(--accent-dark); font-weight: 600;
   }
-
-  /* States */
-  .loading-state { text-align: center; padding: 5rem 2rem; color: var(--muted); }
-  .loader {
-    width: 32px; height: 32px; border: 2px solid var(--border);
-    border-top-color: var(--accent); border-radius: 50%;
-    animation: spin 0.7s linear infinite; margin: 0 auto 1rem;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .empty-state { text-align: center; padding: 5rem 2rem; }
-  .empty-state h3 { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.5rem; }
-  .empty-state p { color: var(--muted); font-size: 0.85rem; margin-bottom: 2rem; }
-  .empty-cta { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+  .sync-bar svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .sync-bar a { color: var(--accent-dark); text-decoration: underline; cursor: pointer; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="dashboard">
+<div class="dash">
 
-  <!-- Top row -->
-  <div class="dash-toprow">
-    <div>
-      <h1>Dashboard</h1>
-      <p class="sub">Your financial overview</p>
+  <!-- Gmail banner -->
+  {% if gmail_connected %}
+    <div class="gmail-banner">
+      <div class="gmail-banner-icon">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      </div>
+      <div class="gmail-banner-text">
+        <strong>Gmail Connected</strong>
+        <p>Auto-importing transaction emails</p>
+      </div>
+      <div class="gmail-synced">Synced</div>
+      <a href="/gmail/sync" class="btn btn-ghost btn-sm">Sync Now</a>
     </div>
-    <div class="dash-controls">
-      <input type="month" id="monthPicker" value="{{ month }}" class="month-input" />
-      <a href="/report?month={{ month }}" class="btn btn-ghost">↓ Report</a>
-      <a href="/ingest" class="btn btn-accent">+ Add data</a>
+  {% else %}
+    <div class="gmail-banner">
+      <div class="gmail-banner-icon">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      </div>
+      <div class="gmail-banner-text">
+        <strong>Gmail Sync</strong>
+        <p>Connect to auto-import transactions</p>
+      </div>
+      <a href="/gmail/connect" class="btn btn-primary btn-sm">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Connect Gmail
+      </a>
+    </div>
+  {% endif %}
+
+  <!-- STAT CARDS -->
+  <div class="stat-row">
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <span class="stat-card-label">Total Earnings</span>
+        <span class="stat-card-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span>
+      </div>
+      <div class="stat-value">₹{{ "{:,.0f}".format(summary.total_income or 0) }}</div>
+      <div class="stat-trend up">
+        <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+        +{{ summary.income_trend or '0' }}% this month
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <span class="stat-card-label">Total Expenses</span>
+        <span class="stat-card-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg></span>
+      </div>
+      <div class="stat-value">₹{{ "{:,.0f}".format(summary.total_expenses or 0) }}</div>
+      <div class="stat-trend down">
+        <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="18 9 12 15 6 9"/></svg>
+        +{{ summary.expense_trend or '0' }}% this month
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <span class="stat-card-label">Net Savings</span>
+        <span class="stat-card-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg></span>
+      </div>
+      <div class="stat-value">₹{{ "{:,.0f}".format((summary.total_income or 0) - (summary.total_expenses or 0)) }}</div>
+      <div class="stat-trend up">
+        <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+        +{{ summary.savings_trend or '0' }}% this month
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-top">
+        <span class="stat-card-label">Transactions</span>
+        <span class="stat-card-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></span>
+      </div>
+      <div class="stat-value">{{ summary.total_count or 0 }}</div>
+      <div class="stat-trend up">
+        <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+        +{{ summary.new_this_month or 0 }} this month
+      </div>
     </div>
   </div>
 
-  <!-- Gmail bar -->
-  <div class="gmail-bar">
-    <div class="gmail-bar-left">
-      <div class="gmail-dot" id="gmailDot"></div>
-      <div class="gmail-bar-text">
-        <div class="title">Gmail Sync</div>
-        <div class="sub" id="gmailSubtext">Connect Gmail to auto-import bank transactions</div>
+  <!-- CHART + CATEGORIES -->
+  <div class="main-grid">
+    <div class="panel">
+      <div class="panel-title">Spending Trend</div>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Income</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Expense</div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="spendChart"></canvas>
       </div>
     </div>
-    <div class="gmail-bar-right">
-      <span class="sync-badge" id="syncBadge"></span>
-      <div id="gmailBtnWrap">
-        <a href="/gmail/connect" class="btn-connect">Connect Gmail →</a>
-      </div>
-    </div>
-  </div>
-
-  <!-- Loading -->
-  <div id="loadingState" class="loading-state">
-    <div class="loader"></div>
-    <p>Loading transactions...</p>
-  </div>
-
-  <!-- Empty -->
-  <div id="emptyState" class="empty-state" style="display:none;">
-    <div style="font-size:2.5rem; margin-bottom:1rem; opacity:0.3;">◎</div>
-    <h3>No transactions yet</h3>
-    <p>Connect Gmail or manually add transactions to get started.</p>
-    <div class="empty-cta">
-      <a href="/gmail/connect" class="btn btn-accent">📧 Connect Gmail</a>
-      <a href="/ingest" class="btn btn-outline">Paste SMS</a>
-    </div>
-  </div>
-
-  <!-- Content -->
-  <div id="dashContent" style="display:none;">
-
-    <!-- Stats -->
-    <div class="stats-grid" id="statsGrid"></div>
-
-    <!-- Main grid -->
-    <div class="main-grid">
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">Spending Trend</span>
-          <span style="font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:var(--muted);" id="trendTotal"></span>
-        </div>
-        <canvas id="trendChart"></canvas>
-      </div>
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">Recent</span>
-          <a href="/ingest" class="panel-action">+ add</a>
-        </div>
-        <div id="recentList"></div>
-      </div>
-    </div>
-
-    <!-- Bottom -->
-    <div class="bottom-grid">
-      <div class="panel">
-        <div class="panel-header"><span class="panel-title">By Category</span></div>
-        <div class="donut-wrap">
-          <canvas id="categoryChart"></canvas>
-          <div class="donut-center" id="donutCenter">
-            <div class="big">—</div>
-            <div class="sm">total</div>
+    <div class="panel">
+      <div class="panel-title">By Category</div>
+      <div class="cat-list" id="catList">
+        {% if categories %}
+          {% set max_amt = categories[0].total if categories else 1 %}
+          {% for cat in categories[:6] %}
+          <div class="cat-item">
+            <div class="cat-item-top">
+              <span class="cat-name">{{ cat.category }}</span>
+              <span class="cat-amt">₹{{ "{:,.0f}".format(cat.total) }}</span>
+            </div>
+            <div class="cat-bar">
+              <div class="cat-bar-fill" style="width:{{ (cat.total / max_amt * 100)|round }}%; background:{{ loop.cycle('var(--accent)', 'var(--red)', '#6366F1', '#F59E0B', '#06B6D4', '#8B5CF6') }}"></div>
+            </div>
           </div>
-        </div>
-        <div id="categoryLegend"></div>
+          {% endfor %}
+        {% else %}
+          <div class="no-data"><div class="no-data-icon">📊</div>No category data yet</div>
+        {% endif %}
       </div>
-      <div style="display:flex; flex-direction:column; gap:1.5rem;">
-        <div class="panel" style="flex:1;">
-          <div class="panel-header"><span class="panel-title">Top Merchants</span></div>
-          <div id="merchantsList"></div>
-        </div>
-        <div class="panel" style="flex:1;">
-          <div class="panel-header"><span class="panel-title">Alerts</span></div>
-          <div id="alertsList"></div>
-        </div>
+    </div>
+  </div>
+
+  <!-- TRANSACTIONS + TOP MERCHANTS -->
+  <div class="bottom-grid">
+    <div class="panel">
+      <div class="panel-title" style="display:flex; align-items:center; justify-content:space-between">
+        Recent Transactions
+        <a href="/ingest" class="btn btn-ghost btn-sm">+ Add</a>
+      </div>
+      <div class="txn-list">
+        {% if transactions %}
+          {% for t in transactions[:10] %}
+          <div class="txn-item">
+            <div class="txn-icon {{ 'credit' if t.type == 'credit' else 'debit' }}">
+              {{ '↗' if t.type == 'credit' else '↙' }}
+            </div>
+            <div class="txn-info">
+              <div class="txn-name">{{ t.merchant_clean or t.merchant or 'Unknown' }}</div>
+              <div class="txn-meta">{{ t.category or 'Uncategorized' }} · {{ t.date }}</div>
+            </div>
+            <div class="txn-amt {{ 'credit' if t.type == 'credit' else 'debit' }}">
+              {{ '+' if t.type == 'credit' else '' }}₹{{ "{:,.0f}".format(t.amount) }}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="no-data">
+            <div class="no-data-icon">💳</div>
+            No transactions yet.<br/>
+            <a href="/ingest" style="color:var(--accent)">Add data</a> or connect Gmail above.
+          </div>
+        {% endif %}
       </div>
     </div>
 
+    <div class="panel">
+      <div class="panel-title">Top Merchants</div>
+      <div class="merchant-list">
+        {% if top_merchants %}
+          {% for m in top_merchants[:5] %}
+          <div class="merchant-item">
+            <div class="merchant-rank">{{ loop.index }}</div>
+            <div>
+              <div class="merchant-name">{{ m.merchant_clean or m.merchant }}</div>
+              <div class="merchant-count">{{ m.count }} transactions</div>
+            </div>
+            <div class="merchant-amt">₹{{ "{:,.0f}".format(m.total) }}</div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="no-data"><div class="no-data-icon">🏪</div>No merchant data yet</div>
+        {% endif %}
+      </div>
+    </div>
   </div>
+
 </div>
 
 <script>
-let catChart, trendChart;
-const COLORS = ['#00FF94','#FF4D6D','#3B82F6','#F59E0B','#8B5CF6','#EC4899','#06B6D4','#84CC16'];
-
-async function checkGmail() {
-  try {
-    const r = await fetch('/gmail/status');
-    const d = await r.json();
-    if (d.connected) {
-      document.getElementById('gmailDot').classList.add('connected');
-      document.getElementById('gmailSubtext').textContent = '✓ Connected — transactions auto-imported';
-      document.getElementById('gmailBtnWrap').innerHTML = `
-        <button class="btn-sync-now" onclick="syncGmail()">↻ Sync now</button>
-        <a href="/gmail/disconnect" style="font-size:0.72rem; color:var(--muted); text-decoration:none; margin-left:0.5rem;">disconnect</a>
-      `;
-    }
-  } catch(e) {}
-}
-
-async function syncGmail() {
-  const badge = document.getElementById('syncBadge');
-  badge.textContent = 'syncing...'; badge.className = 'sync-badge';
-  try {
-    const r = await fetch('/gmail/sync');
-    const d = await r.json();
-    if (d.success) {
-      badge.textContent = d.count > 0 ? `+${d.count} imported` : 'up to date';
-      badge.className = 'sync-badge ok';
-      if (d.count > 0) setTimeout(() => loadDashboard('{{ month }}'), 800);
-    } else {
-      badge.textContent = 'sync failed'; badge.className = 'sync-badge err';
-    }
-  } catch(e) {
-    badge.textContent = 'error'; badge.className = 'sync-badge err';
+  // Chart colours from CSS vars
+  function cssVar(v) {
+    return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   }
-}
 
-async function loadDashboard(month) {
-  document.getElementById('loadingState').style.display = 'block';
-  document.getElementById('dashContent').style.display = 'none';
-  document.getElementById('emptyState').style.display = 'none';
-  try {
-    const r = await fetch(`/api/dashboard?month=${month}`);
-    const d = await r.json();
-    if (d.error) throw new Error(d.error);
-    if (!d.summary.transaction_count) {
-      document.getElementById('loadingState').style.display = 'none';
-      document.getElementById('emptyState').style.display = 'block';
-      return;
-    }
-    renderStats(d.summary);
-    renderTrend(d.daily_trend);
-    renderCategory(d.category_breakdown, d.summary.total_expense);
-    renderRecent(d.recent_transactions);
-    renderMerchants(d.top_merchants);
-    renderAlerts(d.alerts);
-    document.getElementById('loadingState').style.display = 'none';
-    document.getElementById('dashContent').style.display = 'block';
-  } catch(e) {
-    document.getElementById('loadingState').innerHTML = `<p style="color:var(--red)">Error: ${e.message}</p>`;
-  }
-}
+  const chartData = {{ chart_data | tojson | safe if chart_data else '{}' }};
+  const labels = chartData.labels || ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const income  = chartData.income  || [0,0,0,0,0,0,0];
+  const expense = chartData.expense || [0,0,0,0,0,0,0];
 
-function renderStats(s) {
-  document.getElementById('statsGrid').innerHTML = [
-    { lbl: 'Total Earnings', val: `₹${fmt(s.total_income)}`, cls: 'green', hint: 'this month' },
-    { lbl: 'Total Expenses', val: `₹${fmt(s.total_expense)}`, cls: 'red', hint: 'this month' },
-    { lbl: 'Net Savings', val: `₹${fmt(s.savings)}`, cls: s.savings >= 0 ? 'green' : 'red', hint: `${s.savings_rate}% savings rate` },
-    { lbl: 'Transactions', val: s.transaction_count, cls: '', hint: 'total entries' },
-  ].map(c => `
-    <div class="stat-cell">
-      <div class="lbl">${c.lbl}</div>
-      <div class="val ${c.cls}">${c.val}</div>
-      <div class="hint">${c.hint}</div>
-    </div>
-  `).join('');
-}
-
-function renderTrend(trend) {
-  if (trendChart) trendChart.destroy();
-  const total = trend.reduce((a, b) => a + b.amount, 0);
-  document.getElementById('trendTotal').textContent = `₹${fmtK(total)} total`;
-  trendChart = new Chart(document.getElementById('trendChart'), {
+  const ctx = document.getElementById('spendChart').getContext('2d');
+  const chart = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: trend.map(d => d.date.slice(5)),
-      datasets: [{
-        data: trend.map(d => d.amount),
-        backgroundColor: trend.map((_, i) => i === trend.length - 1 ? '#00FF94' : 'rgba(255,255,255,0.06)'),
-        borderRadius: 4, borderSkipped: false,
-      }]
+      labels,
+      datasets: [
+        { label: 'Income',  data: income,  backgroundColor: cssVar('--accent') + 'CC', borderRadius: 5, borderSkipped: false },
+        { label: 'Expense', data: expense, backgroundColor: cssVar('--red')    + 'B0', borderRadius: 5, borderSkipped: false }
+      ]
     },
     options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        backgroundColor: cssVar('--bg2'),
+        titleColor: cssVar('--text'), bodyColor: cssVar('--muted'),
+        borderColor: cssVar('--border'), borderWidth: 1,
+        callbacks: { label: ctx => '₹' + ctx.raw.toLocaleString('en-IN') }
+      }},
       scales: {
-        x: { ticks: { color: '#555', font: { size: 9, family: 'JetBrains Mono' } }, grid: { display: false } },
-        y: { ticks: { color: '#555', font: { size: 9 }, callback: v => `₹${fmtK(v)}` }, grid: { color: 'rgba(255,255,255,0.03)' } }
-      },
-      plugins: { legend: { display: false } },
+        x: { grid: { display: false }, ticks: { color: cssVar('--muted'), font: { size: 11 } }, border: { display: false } },
+        y: { grid: { color: cssVar('--border') }, ticks: { color: cssVar('--muted'), font: { size: 11 },
+          callback: v => '₹' + (v >= 1000 ? (v/1000)+'k' : v) }, border: { display: false } }
+      }
     }
   });
-}
 
-function renderCategory(cats, total) {
-  if (catChart) catChart.destroy();
-  document.getElementById('donutCenter').innerHTML = `<div class="big">₹${fmtK(total)}</div><div class="sm">spent</div>`;
-  catChart = new Chart(document.getElementById('categoryChart'), {
-    type: 'doughnut',
-    data: {
-      labels: cats.map(c => c.category),
-      datasets: [{ data: cats.map(c => c.amount), backgroundColor: COLORS, borderWidth: 0, hoverOffset: 4 }]
-    },
-    options: {
-      cutout: '75%',
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ₹${fmt(ctx.raw)}` } } }
-    }
-  });
-  document.getElementById('categoryLegend').innerHTML = cats.slice(0, 5).map((c, i) => `
-    <div class="legend-row">
-      <div class="legend-left">
-        <div class="legend-dot" style="background:${COLORS[i]}"></div>
-        <span style="font-size:0.78rem;">${c.category}</span>
-      </div>
-      <span class="legend-pct">${c.percentage}%</span>
-    </div>
-  `).join('');
-}
-
-function renderRecent(txns) {
-  const catColors = { Food:'#F59E0B', Transport:'#3B82F6', Shopping:'#8B5CF6', Bills:'#00FF94', Income:'#00FF94', Other:'#555' };
-  document.getElementById('recentList').innerHTML = (txns || []).slice(0, 7).map(t => `
-    <div class="txn-item">
-      <div class="txn-bullet" style="background:${catColors[t.category] || '#555'}"></div>
-      <div class="txn-info">
-        <div class="txn-name">${t.merchant_clean || t.merchant || 'Unknown'}</div>
-        <div class="txn-meta">${t.category} · ${t.date}</div>
-      </div>
-      <div class="txn-amt ${t.type}">${t.type === 'debit' ? '−' : '+'}₹${fmt(t.amount)}</div>
-    </div>
-  `).join('') || '<p style="color:var(--muted);font-size:0.8rem;text-align:center;padding:1rem;">No transactions</p>';
-}
-
-function renderMerchants(merchants) {
-  document.getElementById('merchantsList').innerHTML = (merchants || []).map((m, i) => `
-    <div class="merchant-row">
-      <span class="merchant-n">${String(i+1).padStart(2,'0')}</span>
-      <span class="merchant-name">${m.merchant}</span>
-      <span class="merchant-amt">₹${fmt(m.amount)}</span>
-    </div>
-  `).join('') || '<p style="color:var(--muted);font-size:0.78rem;">No data</p>';
-}
-
-function renderAlerts(alerts) {
-  document.getElementById('alertsList').innerHTML = (alerts || []).map(a => `
-    <div class="alert-item">${a.icon} ${a.message}</div>
-  `).join('') || '<p style="color:var(--muted);font-size:0.78rem;">✓ No alerts this month</p>';
-}
-
-function fmt(n) { return Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 }); }
-function fmtK(n) {
-  if (n >= 100000) return (n/100000).toFixed(1) + 'L';
-  if (n >= 1000) return (n/1000).toFixed(0) + 'k';
-  return Math.round(n);
-}
-
-document.getElementById('monthPicker').addEventListener('change', function() {
-  history.pushState({}, '', `/dashboard?month=${this.value}`);
-  loadDashboard(this.value);
-});
-
-checkGmail();
-loadDashboard('{{ month }}');
+  // Update chart on theme toggle
+  const origToggle = window.toggleTheme;
+  window.toggleTheme = function() {
+    origToggle();
+    setTimeout(() => {
+      chart.options.plugins.tooltip.backgroundColor = cssVar('--bg2');
+      chart.options.plugins.tooltip.titleColor = cssVar('--text');
+      chart.options.plugins.tooltip.bodyColor = cssVar('--muted');
+      chart.options.plugins.tooltip.borderColor = cssVar('--border');
+      chart.options.scales.x.ticks.color = cssVar('--muted');
+      chart.options.scales.y.ticks.color = cssVar('--muted');
+      chart.options.scales.y.grid.color = cssVar('--border');
+      chart.update();
+    }, 50);
+  };
 </script>
 {% endblock %}
