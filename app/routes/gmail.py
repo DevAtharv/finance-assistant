@@ -261,7 +261,12 @@ def status():
         return jsonify({"connected": connected})
     except Exception:
         return jsonify({"connected": False})
-
+@gmail_bp.route("/gmail/reset_sync")
+def reset_sync():
+    if not session.get("user_id"):
+        return jsonify({"error": "Unauthorized"}), 401
+    _sync_status[session["user_id"]] = {"running": False, "saved": 0, "skipped": 0, "error": None}
+    return jsonify({"status": "reset", "message": "Sync status cleared"})
 
 @gmail_bp.route("/gmail/disconnect")
 def disconnect():
